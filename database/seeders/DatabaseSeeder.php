@@ -19,6 +19,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Seed roles first
+        $this->call(RoleSeeder::class);
+
         // Create sample users
         $admin = User::create([
             'unique_id' => 'EMP001',
@@ -27,7 +30,6 @@ class DatabaseSeeder extends Seeder
             'last_name' => 'User',
             'email' => 'admin@taskmaster.com',
             'password' => Hash::make('password'),
-            'role' => 'admin',
             'status' => 'Active',
             'start_date' => now()->subYears(2),
         ]);
@@ -39,7 +41,6 @@ class DatabaseSeeder extends Seeder
             'last_name' => 'Johnson',
             'email' => 'sarah.johnson@taskmaster.com',
             'password' => Hash::make('password'),
-            'role' => 'manager',
             'status' => 'Active',
             'start_date' => now()->subYears(1),
         ]);
@@ -51,7 +52,6 @@ class DatabaseSeeder extends Seeder
             'last_name' => 'Chen',
             'email' => 'mike.chen@taskmaster.com',
             'password' => Hash::make('password'),
-            'role' => 'developer',
             'status' => 'Active',
             'start_date' => now()->subMonths(8),
         ]);
@@ -63,7 +63,6 @@ class DatabaseSeeder extends Seeder
             'last_name' => 'Kim',
             'email' => 'david.kim@taskmaster.com',
             'password' => Hash::make('password'),
-            'role' => 'developer',
             'status' => 'Active',
             'start_date' => now()->subMonths(6),
         ]);
@@ -75,7 +74,6 @@ class DatabaseSeeder extends Seeder
             'last_name' => 'Rodriguez',
             'email' => 'emily.rodriguez@taskmaster.com',
             'password' => Hash::make('password'),
-            'role' => 'designer',
             'status' => 'Active',
             'start_date' => now()->subMonths(10),
         ]);
@@ -87,10 +85,17 @@ class DatabaseSeeder extends Seeder
             'last_name' => 'Wang',
             'email' => 'lisa.wang@taskmaster.com',
             'password' => Hash::make('password'),
-            'role' => 'developer',
             'status' => 'Active',
             'start_date' => now()->subMonths(5),
         ]);
+
+        // Assign Spatie roles to users
+        $admin->assignRole('admin');
+        $manager->assignRole('manager');
+        $dev1->assignRole('developer');
+        $dev2->assignRole('developer');
+        $designer->assignRole('designer');
+        $dev3->assignRole('developer');
 
         // Create sample project
         $project = Project::create([
@@ -214,7 +219,7 @@ class DatabaseSeeder extends Seeder
             'description' => 'Configure development environment, version control, CI/CD pipeline, and deployment infrastructure.',
             'priority' => 'high',
             'task_type' => 'general',
-            'task_status' => 'completed_approved',
+            'task_status' => 'approved',
             'assigned_to' => $dev1->id,
             'created_by' => $admin->id,
             'start_date' => '2024-01-10',

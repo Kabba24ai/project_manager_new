@@ -88,25 +88,7 @@
                     @enderror
                 </div>
 
-                <!-- Demo Credentials Helper -->
-                <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p class="text-sm text-blue-700 mb-2">
-                        <strong>Demo Credentials:</strong>
-                    </p>
-                    <div class="flex items-center justify-between">
-                        <div class="text-xs text-blue-600">
-                            <div>Email: admin@taskmaster.com</div>
-                            <div>Password: password</div>
-                        </div>
-                        <button
-                            type="button"
-                            onclick="fillDemoCredentials()"
-                            class="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
-                        >
-                            Use Demo
-                        </button>
-                    </div>
-                </div>
+                
 
                 <!-- Submit Button -->
                 <button
@@ -154,10 +136,7 @@ function togglePassword() {
     }
 }
 
-function fillDemoCredentials() {
-    document.getElementById('email').value = 'admin@taskmaster.com';
-    document.getElementById('password').value = 'password';
-}
+
 </script>
 @endsection
 

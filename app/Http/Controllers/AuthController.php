@@ -101,4 +101,69 @@ class AuthController extends Controller
 
         return response()->json(null, 401);
     }
+
+    /**
+     * Handle SSO login from Kaaba2 application
+     */
+    public function sso(Request $request)
+    {
+        // If already logged in, redirect to dashboard
+        if (Auth::check()) {
+            return redirect()->route('dashboard');
+        }
+
+        try {
+            $token = $request->query('token');
+            
+            if (!$token) {
+                return redirect()->route('login')->with('error', 'Invalid SSO token.');
+            }
+
+            // Decode and verify token
+            $decoded = json_decode(base64_decode($token), true);
+            
+            if (!isset($decoded['data']) || !isset($decoded['signature'])) {
+                return redirect()->route('login')->with('error', 'Invalid token format.');
+            }
+
+            // Verify signature
+            $secret = env('SSO_SHARED_SECRET', config('app.key'));
+            $expectedSignature = hash_hmac('sha256', $decoded['data'], $secret);
+            
+            if (!hash_equals($expectedSignature, $decoded['signature'])) {
+                return redirect()->route('login')->with('error', 'Invalid token signature.');
+            }
+
+            // Decode payload
+            $payload = json_decode($decoded['data'], true);
+            
+            if (!isset($payload['email']) || !isset($payload['expires_at'])) {
+                return redirect()->route('login')->with('error', 'Invalid token payload.');
+            }
+
+            // Check expiration
+            if (time() > $payload['expires_at']) {
+                return redirect()->route('login')->with('error', 'SSO token has expired.');
+            }
+
+            // Find user by email
+            $user = User::where('email', $payload['email'])
+                ->where('status', 'Active')
+                ->first();
+
+            if (!$user) {
+                return redirect()->route('login')->with('error', 'User not found or inactive.');
+            }
+
+            // Log in the user
+            Auth::login($user, $request->boolean('remember', true));
+            $request->session()->regenerate();
+
+            return redirect()->route('dashboard');
+            
+        } catch (\Exception $e) {
+            \Log::error('SSO login error: ' . $e->getMessage());
+            return redirect()->route('login')->with('error', 'SSO authentication failed.');
+        }
+    }
 }

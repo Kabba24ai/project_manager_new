@@ -19,6 +19,9 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
 });
 
+// SSO route (accessible without guest middleware)
+Route::get('/auth/sso', [AuthController::class, 'sso'])->name('auth.sso');
+
 // Authenticated routes
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');

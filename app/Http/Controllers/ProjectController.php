@@ -6,12 +6,14 @@ use App\Models\Project;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
 
 class ProjectController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Project::with(['createdBy.roles', 'projectManager.roles', 'taskLists.tasks.assignedUser.roles', 'taskLists.tasks.creator.roles'])
+        $query = Project::with(['createdBy.roles', 'projectManager.roles', 'taskLists.tasks.assignedUser.roles', 'taskLists.tasks.creator.roles', 'taskLists.tasks.comments.user'])
             ->where(function ($q) {
                 $q->where('created_by', Auth::id())
                     ->orWhere('project_manager_id', Auth::id())
@@ -24,7 +26,7 @@ class ProjectController extends Controller
             $query->where('status', $request->status);
         }
 
-        $projects = $query->latest()->get();
+        $projects = $query->orderBy('name')->get();
 
         // Add computed fields
         $projects = $projects->map(function ($project) {
@@ -52,7 +54,9 @@ class ProjectController extends Controller
             ]);
         }
 
-        return view('projects.index', compact('projects'));
+        // Read the role via Spatie (uses roles + model_has_roles tables internally)
+        $authRoleName = Auth::user()?->getRoleNames()?->first() ?? '';
+        return view('projects.index', compact('projects', 'authRoleName'));
     }
 
     public function show($id)
@@ -84,7 +88,16 @@ class ProjectController extends Controller
 
     public function create()
     {
-        $managers = User::role(['admin', 'manager'])->with('roles')->get();
+        // Resolve roles from DB first to avoid RoleDoesNotExist exceptions
+        $managerRoleNames = ['admin', 'manager', 'master admin', 'master_admin', 'master-admin'];
+        $managerRoles = Role::query()
+            ->where('guard_name', 'web')
+            ->whereIn(DB::raw('LOWER(name)'), array_map('strtolower', $managerRoleNames))
+            ->get();
+
+        $managers = $managerRoles->isEmpty()
+            ? collect()
+            : User::role($managerRoles)->with('roles')->get();
         $users = User::with('roles')->get();
 
         return view('projects.create', compact('managers', 'users'));
@@ -92,6 +105,13 @@ class ProjectController extends Controller
 
     public function store(Request $request)
     {
+        // Allow formatting like "$50,000" in UI; store numeric value in DB
+        if ($request->filled('budget')) {
+            $request->merge([
+                'budget' => preg_replace('/[^\d.\-]/', '', (string) $request->budget),
+            ]);
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'required|string',
@@ -144,7 +164,15 @@ class ProjectController extends Controller
             abort(403);
         }
 
-        $managers = User::role(['admin', 'manager'])->with('roles')->get();
+        $managerRoleNames = ['admin', 'manager', 'master admin', 'master_admin', 'master-admin'];
+        $managerRoles = Role::query()
+            ->where('guard_name', 'web')
+            ->whereIn(DB::raw('LOWER(name)'), array_map('strtolower', $managerRoleNames))
+            ->get();
+
+        $managers = $managerRoles->isEmpty()
+            ? collect()
+            : User::role($managerRoles)->with('roles')->get();
         $users = User::with('roles')->get();
 
         return view('projects.edit', compact('project', 'managers', 'users'));
@@ -160,6 +188,13 @@ class ProjectController extends Controller
 
         if (!$canUpdate) {
             abort(403);
+        }
+
+        // Allow formatting like "$50,000" in UI; store numeric value in DB
+        if ($request->filled('budget')) {
+            $request->merge([
+                'budget' => preg_replace('/[^\d.\-]/', '', (string) $request->budget),
+            ]);
         }
 
         $request->validate([
@@ -203,8 +238,18 @@ class ProjectController extends Controller
     {
         $project = Project::findOrFail($id);
 
-        // Only creator can delete
-        if ($project->created_by !== Auth::id()) {
+        $user = Auth::user();
+        $allowedRoles = ['admin', 'manager', 'master admin', 'master_admin', 'master-admin'];
+
+        // Only users with admin/manager/master-admin roles can delete projects
+        if (
+            !$user
+            || $user->roles->isEmpty()
+            || empty(array_intersect(
+                array_map('strtolower', $user->roles->pluck('name')->all()),
+                array_map('strtolower', $allowedRoles)
+            ))
+        ) {
             abort(403);
         }
 

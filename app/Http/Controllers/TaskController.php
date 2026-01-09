@@ -6,14 +6,17 @@ use App\Models\Task;
 use App\Models\TaskList;
 use App\Models\User;
 use App\Models\Project;
+use App\Models\Attachment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class TaskController extends Controller
 {
     public function create($projectId)
     {
-        $project = Project::with('taskLists')->findOrFail($projectId);
+        $project = Project::with(['taskLists', 'teamMembers'])->findOrFail($projectId);
 
         // Check if user has access to this project
         $hasAccess = $project->created_by === Auth::id()
@@ -24,7 +27,18 @@ class TaskController extends Controller
             abort(403);
         }
 
-        $users = User::with('roles')->get();
+        // Only allow assigning tasks to project team members (exclude creator/manager)
+        $projectUserIds = $project->teamMembers
+            ->pluck('id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $users = User::with('roles')
+            ->whereIn('id', $projectUserIds)
+            ->get()
+            ->sortBy('name')
+            ->values();
         $taskListId = request('task_list_id');
         
         // Load equipment categories with their equipment
@@ -41,6 +55,12 @@ class TaskController extends Controller
                     return [
                         'id' => $item->id,
                         'name' => $item->equipment_name,
+                        // "equipment_id" is the business/visible equipment identifier column
+                        'equipment_id' => $item->equipment_id,
+                        // Expose DB column name for frontend usage
+                        'current_status' => $item->current_status,
+                        // Backward-compatible alias
+                        'status' => $item->current_status,
                         'available' => $item->current_status === 'available',
                     ];
                 })
@@ -77,6 +97,8 @@ class TaskController extends Controller
             'estimated_hours' => 'nullable|numeric',
             'tags' => 'nullable|array',
             'task_list_id' => 'nullable|exists:task_lists,id',
+            'attachments' => 'nullable|array',
+            'attachments.*' => 'file|max:51200|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,webm,pdf',
         ]);
 
         // Use task_list_id from request body if provided, otherwise use URL parameter
@@ -98,6 +120,29 @@ class TaskController extends Controller
             'tags' => $request->tags,
         ]);
 
+        // Save attachments (optional)
+        $files = $request->file('attachments', []);
+        foreach ($files as $file) {
+            if (!$file) {
+                continue;
+            }
+
+            $ext = $file->getClientOriginalExtension();
+            $storedName = (string) Str::uuid() . ($ext ? '.' . $ext : '');
+            $storedPath = $file->storeAs("tasks/{$task->id}", $storedName, 'local');
+
+            Attachment::create([
+                'attachable_type' => Task::class,
+                'attachable_id' => $task->id,
+                'filename' => $storedName,
+                'original_filename' => $file->getClientOriginalName(),
+                'path' => $storedPath,
+                'mime_type' => $file->getClientMimeType(),
+                'size' => $file->getSize(),
+                'uploaded_by' => Auth::id(),
+            ]);
+        }
+
         $task->load('assignedUser');
 
         if ($request->expectsJson()) {
@@ -110,7 +155,14 @@ class TaskController extends Controller
 
     public function show($id)
     {
-        $task = Task::with(['assignedUser', 'creator', 'taskList', 'project', 'comments.author'])->findOrFail($id);
+        $task = Task::with([
+            'assignedUser',
+            'creator',
+            'taskList',
+            'project.teamMembers',
+            'comments.author',
+            'attachments.uploader',
+        ])->findOrFail($id);
 
         // Check if user has access to this task's project
         $project = $task->project;
@@ -131,7 +183,7 @@ class TaskController extends Controller
 
     public function edit($id)
     {
-        $task = Task::with(['taskList.project'])->findOrFail($id);
+        $task = Task::with(['taskList.project.teamMembers', 'attachments.uploader'])->findOrFail($id);
 
         // Check if user has access to this task's project
         $project = $task->project;
@@ -167,6 +219,8 @@ class TaskController extends Controller
             'tags' => 'nullable|array',
             'feedback' => 'nullable|string',
             'task_list_id' => 'nullable|exists:task_lists,id',
+            'attachments' => 'nullable|array',
+            'attachments.*' => 'file|max:51200|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,webm,pdf',
         ]);
 
         $task->update($request->only([
@@ -184,6 +238,29 @@ class TaskController extends Controller
             'feedback',
             'task_list_id',
         ]));
+
+        // Save new attachments (optional)
+        $files = $request->file('attachments', []);
+        foreach ($files as $file) {
+            if (!$file) {
+                continue;
+            }
+
+            $ext = $file->getClientOriginalExtension();
+            $storedName = (string) Str::uuid() . ($ext ? '.' . $ext : '');
+            $storedPath = $file->storeAs("tasks/{$task->id}", $storedName, 'local');
+
+            Attachment::create([
+                'attachable_type' => Task::class,
+                'attachable_id' => $task->id,
+                'filename' => $storedName,
+                'original_filename' => $file->getClientOriginalName(),
+                'path' => $storedPath,
+                'mime_type' => $file->getClientMimeType(),
+                'size' => $file->getSize(),
+                'uploaded_by' => Auth::id(),
+            ]);
+        }
 
         $task->load('assignedUser');
 

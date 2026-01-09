@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\ProjectController;
@@ -51,6 +52,9 @@ Route::middleware('auth')->group(function () {
     Route::patch('/tasks/{task}/status', [TaskController::class, 'updateStatus'])->name('tasks.update-status');
     Route::patch('/tasks/{task}/move', [TaskController::class, 'move'])->name('tasks.move');
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
+
+    // Attachments
+    Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download'])->name('attachments.download');
 
     // Comments
     Route::get('/tasks/{task}/comments', [CommentController::class, 'index'])->name('comments.index');

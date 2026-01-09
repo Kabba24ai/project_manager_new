@@ -25,6 +25,9 @@ class EquipmentController extends Controller
                     return [
                         'id' => $item->id,
                         'name' => $item->equipment_name,
+                        'equipment_id' => $item->equipment_id,
+                        'current_status' => $item->current_status,
+                        'status' => $item->current_status,
                         'available' => $item->current_status === 'available',
                     ];
                 })
@@ -48,6 +51,9 @@ class EquipmentController extends Controller
                 return [
                     'id' => $item->id,
                     'name' => $item->equipment_name,
+                    'equipment_id' => $item->equipment_id,
+                    'current_status' => $item->current_status,
+                    'status' => $item->current_status,
                     'category_id' => $item->product_category_id,
                     'category_name' => $item->category->title ?? null,
                     'available' => $item->current_status === 'available',

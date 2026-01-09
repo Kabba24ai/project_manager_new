@@ -16,6 +16,17 @@ class User extends Authenticatable
     use HasFactory, Notifiable, HasRoles;
 
     /**
+     * IMPORTANT:
+     * This project uses an existing database where Spatie's `model_has_roles.model_type`
+     * is stored as `App\Models\Iam\Personnel\User`.
+     * Override the morph class so HasRoles queries match existing rows.
+     */
+    public function getMorphClass()
+    {
+        return 'App\\Models\\Iam\\Personnel\\User';
+    }
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
@@ -95,7 +106,7 @@ class User extends Authenticatable
      */
     public function getRoleAttribute(): string
     {
-        return $this->roles->first()->name ?? 'developer';
+        return $this->roles->first()->name ?? '';
     }
 
     public function createdProjects(): HasMany

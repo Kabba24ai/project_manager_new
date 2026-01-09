@@ -199,11 +199,17 @@
                                             @click="selectEquipment(equipment)"
                                             class="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
                                         >
-                                            <span class="text-gray-900" x-text="equipment.name"></span>
-                                            <span 
-                                                class="px-2 py-1 rounded-full text-xs"
-                                                :class="equipment.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
-                                                x-text="equipment.available ? 'Available' : 'Rented'"
+                                            <span class="text-gray-900" x-text="equipment.name + ' - ' + (equipment.equipment_id ? equipment.equipment_id : equipment.id)"></span>
+                                            <span
+                                                class="px-2 py-1 rounded text-xs font-semibold"
+                                                :class="{
+                                                    'bg-green-100 text-green-800': (equipment.current_status || '').toLowerCase() === 'available',
+                                                    'bg-blue-100 text-blue-800': (equipment.current_status || '').toLowerCase() === 'rented',
+                                                    'bg-yellow-100 text-yellow-800': (equipment.current_status || '').toLowerCase() === 'maintenance',
+                                                    'bg-red-100 text-red-800': (equipment.current_status || '').toLowerCase() === 'damaged',
+                                                    'bg-gray-100 text-gray-800': !['available','rented','maintenance','damaged'].includes((equipment.current_status || '').toLowerCase()),
+                                                }"
+                                                x-text="(() => { const s = (equipment.current_status || 'unknown').toString(); return s.charAt(0).toUpperCase() + s.slice(1); })()"
                                             ></span>
                                         </button>
                                     </template>
@@ -333,7 +339,7 @@
                                     <option value="">Unassigned</option>
                                     @foreach($users as $user)
                                     <option value="{{ $user->id }}" {{ old('assigned_to') == $user->id ? 'selected' : '' }}>
-                                        {{ $user->name }} ({{ ucfirst($user->role) }})
+                                        {{ $user->name }}@if($user->role) ({{ ucfirst($user->role) }})@endif
                                     </option>
                                     @endforeach
                                 </select>
@@ -450,6 +456,7 @@
                         <input
                             x-ref="fileInput"
                             type="file"
+                            name="attachments[]"
                             multiple
                             accept="image/*,video/*,.pdf"
                             @change="handleFileUpload($event)"
@@ -607,7 +614,7 @@ function taskForm() {
         
         selectEquipment(equipment) {
             this.equipmentId = equipment.id;
-            this.title = equipment.name;
+            this.title = equipment.name + ' - ' + (equipment.equipment_id ? equipment.equipment_id : equipment.id);
             this.showEquipmentDropdown = false;
         },
         
@@ -619,7 +626,7 @@ function taskForm() {
                 }
             });
             const equipment = allEquipment.find(e => e.id == this.equipmentId);
-            return equipment ? equipment.name : '';
+            return equipment ? (equipment.name + ' - ' + (equipment.equipment_id ? equipment.equipment_id : equipment.id)) : '';
         },
         
         getFilteredCustomers() {
@@ -726,10 +733,23 @@ function taskForm() {
                     alert(`File ${file.name} is too large. Maximum size is 50MB.`);
                 }
             });
+
+            // Sync selected files back to the real <input type="file"> for form submit
+            const dt = new DataTransfer();
+            this.attachments.forEach(f => dt.items.add(f));
+            if (this.$refs.fileInput) {
+                this.$refs.fileInput.files = dt.files;
+            }
         },
         
         removeAttachment(index) {
             this.attachments.splice(index, 1);
+
+            const dt = new DataTransfer();
+            this.attachments.forEach(f => dt.items.add(f));
+            if (this.$refs.fileInput) {
+                this.$refs.fileInput.files = dt.files;
+            }
         },
         
         getFileTypeColor(file) {

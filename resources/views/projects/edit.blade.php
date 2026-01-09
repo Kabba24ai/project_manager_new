@@ -39,7 +39,7 @@
             </template>
         </div>
 
-        <form action="{{ route('projects.update', $project->id) }}" method="POST" @submit="return validateStep()">
+        <form action="{{ route('projects.update', $project->id) }}" method="POST" @submit.prevent="if (validateStep()) { $event.target.submit(); }">
             @csrf
             @method('PUT')
             
@@ -114,14 +114,18 @@
 
                         <div>
                             <label for="budget" class="block text-sm font-medium text-gray-700 mb-2">Budget (Optional)</label>
-                            <input 
-                                type="text" 
-                                id="budget" 
-                                name="budget"
-                                value="{{ old('budget', $project->budget) }}"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                placeholder="$50,000"
-                            >
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-500">$</span>
+                                <input 
+                                    type="text" 
+                                    id="budget" 
+                                    name="budget"
+                                    value="{{ old('budget', $project->budget) }}"
+                                    class="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                    placeholder="50,000"
+                                    inputmode="decimal"
+                                >
+                            </div>
                         </div>
                     </div>
 
@@ -189,8 +193,35 @@
                         @enderror
                     </div>
 
-                    <div>
+                    <div x-data="{
+                        allSelected: false,
+                        toggleAll() {
+                            const boxes = this.$root.querySelectorAll(`input[name='team_members[]']`);
+                            boxes.forEach(b => { b.checked = this.allSelected; });
+                        },
+                        syncAllSelected() {
+                            const boxes = Array.from(this.$root.querySelectorAll(`input[name='team_members[]']`));
+                            this.allSelected = boxes.length > 0 && boxes.every(b => b.checked);
+                        },
+                        init() {
+                            this.$nextTick(() => this.syncAllSelected());
+                        }
+                    }">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Team Members</label>
+                        <div class="flex items-center justify-between mb-3">
+                            <label class="flex items-center space-x-2 text-sm text-gray-700">
+                                <input
+                                    type="checkbox"
+                                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    x-model="allSelected"
+                                    @change="toggleAll()"
+                                >
+                                <span>Select All</span>
+                            </label>
+                            <button type="button" class="text-sm text-blue-600 hover:text-blue-800" @click="allSelected=false; toggleAll()">
+                                Clear
+                            </button>
+                        </div>
                         <div class="border border-gray-300 rounded-lg p-4 max-h-80 overflow-y-auto">
                             <div class="space-y-3">
                                 @foreach($users as $user)
@@ -202,6 +233,7 @@
                                         value="{{ $user->id }}"
                                         {{ $project->teamMembers->contains($user->id) ? 'checked' : '' }}
                                         class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                        @change="syncAllSelected()"
                                     >
                                     <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                                         <span class="text-xs font-medium text-white">{{ strtoupper(substr($user->name, 0, 1)) }}</span>

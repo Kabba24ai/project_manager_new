@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
@@ -34,9 +36,15 @@ class UserController extends Controller
 
     public function managers()
     {
-        $managers = User::role(['admin', 'manager'])
-            ->orderBy('first_name')
+        $managerRoleNames = ['admin', 'manager', 'master admin', 'master_admin', 'master-admin'];
+        $managerRoles = Role::query()
+            ->where('guard_name', 'web')
+            ->whereIn(DB::raw('LOWER(name)'), array_map('strtolower', $managerRoleNames))
             ->get();
+
+        $managers = $managerRoles->isEmpty()
+            ? collect()
+            : User::role($managerRoles)->orderBy('first_name')->get();
 
         if (request()->expectsJson()) {
             return response()->json(['data' => ['managers' => $managers]]);

@@ -318,7 +318,7 @@ class TaskController extends Controller
             return response()->json(['data' => ['task' => $task]]);
         }
 
-        return redirect()->back()->with('success', 'Task updated successfully.');
+        return redirect("/tasks/{$task->id}")->with('success', 'Task updated successfully.');
     }
 
     public function updateStatus(Request $request, $id)

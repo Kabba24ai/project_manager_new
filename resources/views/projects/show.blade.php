@@ -251,6 +251,73 @@
                     </button>
                 </div>
             </div>
+            <div class="flex flex-col lg:flex-row lg:items-end gap-4 mt-4">
+                <!-- Assigned To Filter -->
+                <div class="flex-1">
+                    <label for="task_assigned_to_filter" class="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
+                    <select
+                        id="task_assigned_to_filter"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        onchange="filterProjectTasks()"
+                    >
+                        <option value="">All Users</option>
+                        <option value="unassigned">Unassigned</option>
+                        @foreach($project->teamMembers as $member)
+                        <option value="{{ $member->id }}">{{ $member->first_name }} {{ $member->last_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Task Type Filter -->
+                <div class="flex-1">
+                    <label for="task_type_filter" class="block text-sm font-medium text-gray-700 mb-1">Task Type</label>
+                    <select
+                        id="task_type_filter"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        onchange="filterProjectTasks()"
+                    >
+                        <option value="">All Types</option>
+                        <option value="general">📝 General</option>
+                        <option value="equipmentId">🔧 Equipment ID</option>
+                        <option value="customerName">👤 Customer</option>
+                        <option value="feature">✨ Feature</option>
+                        <option value="bug">🐛 Bug</option>
+                        <option value="design">🎨 Design</option>
+                    </select>
+                </div>
+
+                <!-- Task Status Filter -->
+                <div class="flex-1">
+                    <label for="task_status_filter" class="block text-sm font-medium text-gray-700 mb-1">Task Status</label>
+                    <select
+                        id="task_status_filter"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        onchange="filterProjectTasks()"
+                    >
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed_pending_review">Review</option>
+                        <option value="unapproved">Unapproved</option>
+                    </select>
+                </div>
+
+                <!-- Sort Tasks By Filter -->
+                <div class="flex-1">
+                    <label for="task_sort_filter" class="block text-sm font-medium text-gray-700 mb-1">Sort Tasks By</label>
+                    <select
+                        id="task_sort_filter"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        onchange="filterProjectTasks()"
+                    >
+                        <option value="">Default</option>
+                        <option value="priority">Priority (Urgent → Low)</option>
+                        <option value="alphabetical">Alphabetical (A → Z)</option>
+                        <option value="due_date">Due Date (Earliest First)</option>
+                        <option value="start_date">Start Date (Earliest First)</option>
+                    </select>
+                </div>
+            </div>
             <p class="text-xs text-gray-500 mt-3">Filters apply across all task lists on this project view.</p>
         </div>
 
@@ -271,6 +338,15 @@
                             @endif
                         </div>
                         <div class="flex items-center space-x-3">
+                            <label class="flex items-center space-x-2 px-3 py-1  cursor-pointer  transition-colors">
+                                <input 
+                                    type="checkbox" 
+                                    id="show_approved_tasks_{{ $taskList->id }}"
+                                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 show-approved-checkbox"
+                                    onchange="filterProjectTasks()"
+                                >
+                                <span class="text-sm font-medium text-gray-700">Show Approved</span>
+                            </label>
                             <span class="bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-600" data-tasklist-count="{{ $taskList->id }}">
                                 {{ $taskList->tasks->count() }} {{ $taskList->tasks->count() === 1 ? 'task' : 'tasks' }}
                             </span>
@@ -284,61 +360,58 @@
 
                 <!-- Tasks -->
                 <div class="divide-y divide-gray-100" data-tasklist-id="{{ $taskList->id }}">
-                    @php
-                        // Sort alphabetically by task title (A-Z), case-insensitive
-                        $sortedTasks = $taskList->tasks->sortBy(function($task) {
-                            return strtolower($task->title ?? '');
-                        });
-                    @endphp
-                    
-                    @if($sortedTasks->count() > 0)
-                        @foreach($sortedTasks as $task)
+                    @if($taskList->tasks->count() > 0)
+                        @foreach($taskList->tasks as $task)
                         <div
                             class="px-6 py-4 hover:bg-gray-50 transition-colors group project-task-row"
                             data-tasklist-id="{{ $taskList->id }}"
                             data-title="{{ strtolower($task->title) }}"
                             data-start-date="{{ $task->start_date ? \Carbon\Carbon::parse($task->start_date)->format('Y-m-d') : '' }}"
                             data-due-date="{{ $task->due_date ? \Carbon\Carbon::parse($task->due_date)->format('Y-m-d') : '' }}"
+                            data-assigned-to="{{ $task->assigned_to ?? '' }}"
+                            data-task-type="{{ $task->task_type ?? 'general' }}"
+                            data-task-status="{{ $task->task_status ?? 'pending' }}"
+                            data-priority="{{ $task->priority ?? 'medium' }}"
                         >
-                            <div class="flex items-center justify-between">
-                                <a href="{{ route('tasks.show', $task->id) }}" class="flex items-center space-x-4 flex-1 min-w-0">
+                            <div class="flex items-center justify-between relative">
+                                <div class="flex items-center space-x-4 flex-1 min-w-0">
                                     <div class="flex-shrink-0">
                                         <span class="text-lg">
                                             @if($task->task_type === 'general')📝
                                             @elseif($task->task_type === 'equipmentId')🔧
                                             @elseif($task->task_type === 'customerName')👤
-                                            @elseif($task->task_type === 'feature')✨
-                                            @elseif($task->task_type === 'bug')🐛
-                                            @elseif($task->task_type === 'design')🎨
                                             @else📝
                                             @endif
                                         </span>
                                     </div>
                                     
                                     <div class="flex-1 min-w-0">
-                                        <div class="flex items-center space-x-3 mb-2">
+                                        <div class="flex items-center justify-between mb-2">
                                             <h3 class="text-base font-medium text-gray-900">{{ $task->title }}</h3>
-                                            <span class="px-2 py-1 rounded-full text-xs font-medium border flex-shrink-0 {{ 
-                                                $task->priority === 'urgent' ? 'bg-red-100 text-red-800 border-red-200' :
-                                                ($task->priority === 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' :
-                                                ($task->priority === 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'))
-                                            }}">
-                                                {{ ucfirst($task->priority) }}
-                                            </span>
-                                            <span class="px-2 py-1 rounded-full text-xs font-medium border flex-shrink-0 {{ 
-                                                $task->task_status === 'pending' ? 'bg-gray-500 text-white border-gray-600' :
-                                                ($task->task_status === 'in_progress' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                                                ($task->task_status === 'completed_pending_review' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                                                ($task->task_status === 'approved' ? 'bg-green-100 text-green-800 border-green-200' :
-                                                ($task->task_status === 'unapproved' ? 'bg-red-100 text-red-800 border-red-200' :
-                                                ($task->task_status === 'deployed' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-gray-100 text-gray-800 border-gray-200')))))
-                                            }}">
-                                                @if($task->task_status === 'completed_pending_review')
-                                                    Review
-                                                @else
-                                                    {{ ucfirst(str_replace('_', ' ', $task->task_status)) }}
-                                                @endif
-                                            </span>
+                                            <div class="flex items-center space-x-2 absolute right-0 top-0">
+                                                <span class="px-2 py-1 rounded-full text-xs font-medium border flex-shrink-0 {{ 
+                                                    $task->priority === 'urgent' ? 'bg-red-100 text-red-800 border-red-200' :
+                                                    ($task->priority === 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' :
+                                                    ($task->priority === 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'))
+                                                }}">
+                                                    {{ ucfirst($task->priority) }}
+                                                </span>
+                                                <span class="px-2 py-1 rounded-full text-xs font-medium border flex-shrink-0 {{ 
+                                                    $task->task_status === 'pending' ? 'bg-gray-500 text-white border-gray-600' :
+                                                    ($task->task_status === 'in_progress' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                                                    ($task->task_status === 'completed_pending_review' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                                                    ($task->task_status === 'approved' ? 'bg-green-100 text-green-800 border-green-200' :
+                                                    ($task->task_status === 'unapproved' ? 'bg-red-100 text-red-800 border-red-200' :
+                                                    ($task->task_status === 'deployed' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-gray-100 text-gray-800 border-gray-200')))))
+                                                }}">
+                                                    @if($task->task_status === 'completed_pending_review')
+                                                        Review
+                                                    @else
+                                                        {{ ucfirst(str_replace('_', ' ', $task->task_status)) }}
+                                                    @endif
+                                                </span>
+                                            </div>
+                                            
                                         </div>
                                         <p class="text-sm text-gray-600 mb-2">{{ Str::limit($task->description, 100) }}</p>
                                         
@@ -351,10 +424,10 @@
                                                 <span>{{ $task->assignedUser->name }}</span>
                                             </div>
                                             @else
-                                            <div class="flex items-center space-x-1 text-gray-500">
+                                            <a href="{{ route('tasks.edit', $task->id) }}" onclick="event.stopPropagation()" class="flex items-center space-x-1 text-gray-500 hover:text-blue-600 transition-colors">
                                                 <i class="fas fa-users w-4 h-4"></i>
                                                 <span class="underline">Unassigned</span>
-                                            </div>
+                                            </a>
                                             @endif
                                             
                                             @if($task->due_date)
@@ -370,9 +443,9 @@
                                                 <span>{{ $task->comments->count() }}</span>
                                             </div>
                                             @endif
-                                        </div>
+                                        </div>  
                                     </div>
-                                </a>
+                    </div>
 
                                 <div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <a href="{{ route('tasks.show', $task->id) }}" class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="View Task">
@@ -496,25 +569,96 @@ function filterProjectTasks() {
     const startTo = document.getElementById('task_start_to')?.value || '';
     const dueFrom = document.getElementById('task_due_from')?.value || '';
     const dueTo = document.getElementById('task_due_to')?.value || '';
+    const assignedTo = document.getElementById('task_assigned_to_filter')?.value || '';
+    const taskType = document.getElementById('task_type_filter')?.value || '';
+    const taskStatus = document.getElementById('task_status_filter')?.value || '';
+    const sortBy = document.getElementById('task_sort_filter')?.value || '';
 
-    const rows = Array.from(document.querySelectorAll('.project-task-row'));
+    let rows = Array.from(document.querySelectorAll('.project-task-row'));
+    
+    // Filter rows
     rows.forEach(row => {
         const title = row.dataset.title || '';
         const startDate = row.dataset.startDate || '';
         const dueDate = row.dataset.dueDate || '';
+        const assignedUserId = row.dataset.assignedTo || '';
+        const type = row.dataset.taskType || '';
+        const status = row.dataset.taskStatus || '';
+        const taskListId = row.dataset.tasklistId || '';
+        
+        // Check if approved tasks should be shown for this task list
+        const showApprovedCheckbox = document.getElementById(`show_approved_tasks_${taskListId}`);
+        const showApproved = showApprovedCheckbox ? showApprovedCheckbox.checked : false;
 
         const matchesName = !q || title.includes(q);
         const matchesStart = inRange(startDate, startFrom, startTo);
         const matchesDue = inRange(dueDate, dueFrom, dueTo);
+        const matchesAssignedTo = !assignedTo || 
+            (assignedTo === 'unassigned' && !assignedUserId) ||
+            (assignedTo !== 'unassigned' && assignedUserId === assignedTo);
+        const matchesType = !taskType || type === taskType;
+        const matchesStatus = !taskStatus || status === taskStatus;
+        const matchesApproved = showApproved || status !== 'approved';
 
-        row.style.display = (matchesName && matchesStart && matchesDue) ? '' : 'none';
+        row.style.display = (matchesName && matchesStart && matchesDue && matchesAssignedTo && matchesType && matchesStatus && matchesApproved) ? '' : 'none';
     });
+
+    // Sort visible rows
+    if (sortBy) {
+        const priorityOrder = { 'urgent': 0, 'high': 1, 'medium': 2, 'low': 3 };
+        
+        rows.sort((a, b) => {
+            if (a.style.display === 'none' && b.style.display === 'none') return 0;
+            if (a.style.display === 'none') return 1;
+            if (b.style.display === 'none') return -1;
+
+            switch(sortBy) {
+                case 'priority':
+                    const priorityA = priorityOrder[a.dataset.priority] ?? 999;
+                    const priorityB = priorityOrder[b.dataset.priority] ?? 999;
+                    return priorityA - priorityB;
+                
+                case 'alphabetical':
+                    return (a.dataset.title || '').localeCompare(b.dataset.title || '');
+                
+                case 'due_date':
+                    const dueA = a.dataset.dueDate || '9999-12-31';
+                    const dueB = b.dataset.dueDate || '9999-12-31';
+                    return dueA.localeCompare(dueB);
+                
+                case 'start_date':
+                    const startA = a.dataset.startDate || '9999-12-31';
+                    const startB = b.dataset.startDate || '9999-12-31';
+                    return startA.localeCompare(startB);
+                
+                default:
+                    return 0;
+            }
+        });
+
+        // Reorder DOM elements within their task lists
+        const taskListGroups = {};
+        rows.forEach(row => {
+            const taskListId = row.dataset.tasklistId;
+            const container = row.parentElement;
+            if (taskListId && container) {
+                if (!taskListGroups[taskListId]) {
+                    taskListGroups[taskListId] = { container: container, rows: [] };
+                }
+                taskListGroups[taskListId].rows.push(row);
+            }
+        });
+
+        Object.values(taskListGroups).forEach(group => {
+            group.rows.forEach(row => group.container.appendChild(row));
+        });
+    }
 
     updateTaskListCounts();
 }
 
 function resetProjectTaskFilters() {
-    const ids = ['task_name_filter', 'task_start_from', 'task_start_to', 'task_due_from', 'task_due_to'];
+    const ids = ['task_name_filter', 'task_start_from', 'task_start_to', 'task_due_from', 'task_due_to', 'task_assigned_to_filter', 'task_type_filter', 'task_status_filter', 'task_sort_filter'];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
@@ -523,6 +667,7 @@ function resetProjectTaskFilters() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    filterProjectTasks(); // Apply filters on load (hides approved tasks by default)
     updateTaskListCounts();
 });
 </script>

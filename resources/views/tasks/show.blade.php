@@ -81,7 +81,7 @@
     </div>
 
     <!-- Content -->
-    <div class="max-w-7xl mx-auto px-6 py-8">
+    <div class="max-w-7xl mx-auto px-6 py-8" x-data="taskChangesManager()">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- Main Content -->
             <div class="lg:col-span-2">
@@ -152,18 +152,19 @@
                             @if($status['value'] === 'approved' && !$canApprove)
                                 @continue
                             @endif
-                        <form action="{{ route('tasks.update-status', $task->id) }}" method="POST" class="inline-block">
-                            @csrf
-                            @method('PATCH')
-                            <input type="hidden" name="status" value="{{ $status['value'] }}">
-                            <button type="submit" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors border-2 whitespace-nowrap {{ $task->task_status === $status['value'] ? $status['activeColor'] : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50' }}">
+                            <button 
+                                type="button" 
+                                @click="setStatus('{{ $status['value'] }}')" 
+                                :class="{'{{ $status['activeColor'] }}': stagedStatus === '{{ $status['value'] }}', 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50': stagedStatus !== '{{ $status['value'] }}'}"
+                                class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors border-2 whitespace-nowrap"
+                            >
                                 <i class="fas fa-{{ $status['icon'] }} mr-2"></i>
                                 {{ $status['label'] }}
+                                <span x-show="stagedStatus === '{{ $status['value'] }}' && stagedStatus !== '{{ $task->task_status }}'" class="ml-2 text-xs">(pending)</span>
                             </button>
-                        </form>
                         @endforeach
                     </div>
-                    <p class="text-xs text-gray-500 mt-3">Click any status to update the task progress</p>
+                    <p class="text-xs text-gray-500 mt-3">Click any status to stage changes. Click "Save & Exit" to save all changes.</p>
                 </div>
 
                 <!-- Comments Section -->
@@ -192,43 +193,84 @@
                             </div>
                         </div>
                         @empty
-                        <div class="text-center py-12 text-gray-500">
+                        <div x-show="stagedComments.length === 0" class="text-center py-12 text-gray-500">
                             <i class="fas fa-comment text-5xl text-gray-300 mb-4"></i>
                             <h4 class="text-lg font-medium text-gray-900 mb-2">No comments yet</h4>
                             <p class="text-sm">Start the conversation by adding the first comment!</p>
                         </div>
                         @endforelse
-                    </div>
-
-                    <!-- Add Comment Form -->
-                    <div class="border-t border-gray-200 pt-6">
-                        <form action="{{ route('comments.store', $task->id) }}" method="POST">
-                            @csrf
+                        
+                        <!-- Staged Comments (Temporary) -->
+                        <template x-for="(comment, index) in stagedComments" :key="index">
                             <div class="flex space-x-4">
                                 <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                                     <span class="text-sm font-medium text-white">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
                                 </div>
-                                <div class="flex-1">
-                                    <textarea
-                                        name="content"
-                                        placeholder="Add a comment..."
-                                        required
-                                        class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                                        rows="3"
-                                    ></textarea>
+                                <div class="flex-1 min-w-0">
+                                    <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <div class="flex items-center space-x-2">
+                                                <span class="text-sm font-medium text-gray-900">{{ auth()->user()->name }}</span>
+                                                <span class="px-2 py-0.5 bg-yellow-200 text-yellow-800 text-xs rounded-full font-medium">Pending</span>
+                                            </div>
+                                            <button @click="removeStagedComment(index)" class="text-red-600 hover:text-red-800">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                        <p class="text-sm text-gray-700" x-text="comment"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Add Comment Form -->
+                    <div class="border-t border-gray-200 pt-6">
+                        <div class="flex space-x-4">
+                            <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span class="text-sm font-medium text-white">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
+                            </div>
+                            <div class="flex-1">
+                                <textarea
+                                    x-model="newComment"
+                                    placeholder="Add a comment..."
+                                    class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                    rows="3"
+                                ></textarea>
+                                
+                                <div class="flex items-center justify-between mt-4">
+                                    <a 
+                                        href="{{ route('projects.show', $task->project_id) }}" 
+                                        class="flex items-center space-x-2 px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                    >
+                                        <i class="fas fa-times"></i>
+                                        <span>Cancel</span>
+                                    </a>
                                     
-                                    <div class="flex items-center justify-end mt-4">
+                                    <div class="flex items-center space-x-3">
                                         <button
-                                            type="submit"
-                                            class="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                            type="button"
+                                            @click="addComment"
+                                            :disabled="!newComment.trim()"
+                                            class="flex items-center space-x-2 px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            <i class="fas fa-paper-plane"></i>
-                                            <span>Comment</span>
+                                            <i class="fas fa-comment"></i>
+                                            <span>Add Comment</span>
+                                        </button>
+                                        
+                                        <button
+                                            type="button"
+                                            @click="saveAllChanges"
+                                            :disabled="!hasChanges"
+                                            class="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <i class="fas fa-save"></i>
+                                            <span>Save & Exit</span>
                                         </button>
                                     </div>
                                 </div>
                             </div>
-                        </form>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -368,5 +410,88 @@
 <style>
 [x-cloak] { display: none !important; }
 </style>
+
+@push('scripts')
+<script>
+function taskChangesManager() {
+    return {
+        stagedStatus: '{{ $task->task_status }}',
+        originalStatus: '{{ $task->task_status }}',
+        stagedComments: [],
+        newComment: '',
+        
+        get hasChanges() {
+            return this.stagedStatus !== this.originalStatus || this.stagedComments.length > 0;
+        },
+        
+        setStatus(status) {
+            this.stagedStatus = status;
+        },
+        
+        addComment() {
+            if (this.newComment.trim()) {
+                this.stagedComments.push(this.newComment.trim());
+                this.newComment = '';
+            }
+        },
+        
+        removeStagedComment(index) {
+            this.stagedComments.splice(index, 1);
+        },
+        
+        async saveAllChanges() {
+            if (!this.hasChanges) return;
+            
+            try {
+                // Show loading state
+                const saveBtn = event.target;
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Saving...</span>';
+                
+                // Save status change if different
+                if (this.stagedStatus !== this.originalStatus) {
+                    await fetch('{{ route('tasks.update-status', $task->id) }}', {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            status: this.stagedStatus
+                        })
+                    });
+                }
+                
+                // Save all staged comments
+                for (const comment of this.stagedComments) {
+                    await fetch('{{ route('comments.store', $task->id) }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            content: comment
+                        })
+                    });
+                }
+                
+                // Redirect to project page
+                window.location.href = '{{ route('projects.show', $task->project_id) }}';
+            } catch (error) {
+                console.error('Error saving changes:', error);
+                alert('Failed to save changes. Please try again.');
+                // Re-enable button
+                const saveBtn = event.target;
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save"></i> <span>Save & Exit</span>';
+            }
+        }
+    }
+}
+</script>
+@endpush
 @endsection
 

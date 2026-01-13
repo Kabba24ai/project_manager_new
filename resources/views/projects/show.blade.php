@@ -39,11 +39,12 @@
                     </a>
                     
                     @php
-                        $canEdit = $project->created_by === auth()->id() || $project->project_manager_id === auth()->id();
-                        $deleteAllowedRoles = ['admin', 'manager', 'master admin', 'master_admin', 'master-admin'];
                         $userRoleNames = auth()->user()
                             ? auth()->user()->roles->pluck('name')->map(fn($r) => strtolower($r))->all()
                             : [];
+                        $isMasterAdmin = in_array('master admin', $userRoleNames) || in_array('master_admin', $userRoleNames);
+                        $canEdit = $isMasterAdmin || $project->created_by === auth()->id() || $project->project_manager_id === auth()->id();
+                        $deleteAllowedRoles = ['admin', 'manager', 'master admin', 'master_admin', 'master-admin'];
                         $canDeleteProject = !empty(array_intersect($userRoleNames, array_map('strtolower', $deleteAllowedRoles)));
                     @endphp
                     
@@ -377,6 +378,7 @@
                                     <a href="{{ route('tasks.show', $task->id) }}" class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="View Task">
                                         <i class="fas fa-eye w-4 h-4"></i>
                                     </a>
+                                    @if($canEdit)
                                     <a href="{{ route('tasks.edit', $task->id) }}" class="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="Edit Task">
                                         <i class="fas fa-edit w-4 h-4"></i>
                                     </a>
@@ -408,6 +410,7 @@
                                             </form>
                                         </div>
                                     </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>

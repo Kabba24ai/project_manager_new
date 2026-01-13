@@ -13,14 +13,31 @@ class ProjectController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Project::with(['createdBy.roles', 'projectManager.roles', 'taskLists.tasks.assignedUser.roles', 'taskLists.tasks.creator.roles', 'taskLists.tasks.comments.user'])
-            ->where(function ($q) {
-                $q->where('created_by', Auth::id())
-                    ->orWhere('project_manager_id', Auth::id())
-                    ->orWhereHas('teamMembers', function ($q) {
-                        $q->where('user_id', Auth::id());
-                    });
+        $user = Auth::user();
+        $userRoles = $user->getRoleNames();
+        $isMasterAdmin = $userRoles->contains(function ($role) {
+            return strtolower($role) === 'master admin' || strtolower($role) === 'master_admin';
+        });
+
+        $query = Project::with(['createdBy.roles', 'projectManager.roles', 'taskLists.tasks.assignedUser.roles', 'taskLists.tasks.creator.roles', 'taskLists.tasks.comments.user']);
+
+        // Master admin can see all projects
+        if (!$isMasterAdmin) {
+            $query->where(function ($q) {
+                $q->where(function ($subQ) {
+                    // User is part of the project
+                    $subQ->where('created_by', Auth::id())
+                        ->orWhere('project_manager_id', Auth::id())
+                        ->orWhereHas('teamMembers', function ($teamQ) {
+                            $teamQ->where('user_id', Auth::id());
+                        });
+                })
+                ->orWhere(function ($subQ) {
+                    // Or project is public
+                    $subQ->whereRaw("JSON_EXTRACT(settings, '$.publicProject') = true");
+                });
             });
+        }
 
         if ($request->has('status')) {
             $query->where('status', $request->status);
@@ -72,12 +89,23 @@ class ProjectController extends Controller
         ])->findOrFail($id);
 
         // Check if user has access to this project
-        $hasAccess = $project->created_by === Auth::id()
+        $user = Auth::user();
+        $userRoles = $user->getRoleNames();
+        $isMasterAdmin = $userRoles->contains(function ($role) {
+            return strtolower($role) === 'master admin' || strtolower($role) === 'master_admin';
+        });
+
+        $projectSettings = $project->settings ?? [];
+        $isPublicProject = $projectSettings['publicProject'] ?? false;
+
+        $isTeamMember = $project->created_by === Auth::id()
             || $project->project_manager_id === Auth::id()
             || $project->teamMembers->contains('id', Auth::id());
 
+        $hasAccess = $isMasterAdmin || $isPublicProject || $isTeamMember;
+
         if (!$hasAccess) {
-            abort(403);
+            abort(403, 'You do not have permission to view this project.');
         }
 
         if (request()->expectsJson()) {
@@ -204,11 +232,18 @@ class ProjectController extends Controller
         $project = Project::with('teamMembers')->findOrFail($id);
 
         // Check if user can edit this project
-        $canEdit = $project->created_by === Auth::id()
+        $user = Auth::user();
+        $userRoles = $user->getRoleNames();
+        $isMasterAdmin = $userRoles->contains(function ($role) {
+            return strtolower($role) === 'master admin' || strtolower($role) === 'master_admin';
+        });
+
+        $canEdit = $isMasterAdmin
+            || $project->created_by === Auth::id()
             || $project->project_manager_id === Auth::id();
 
         if (!$canEdit) {
-            abort(403);
+            abort(403, 'You do not have permission to edit this project.');
         }
 
         $managerRoleNames = ['admin', 'manager', 'master admin', 'master_admin', 'master-admin'];
@@ -230,11 +265,18 @@ class ProjectController extends Controller
         $project = Project::findOrFail($id);
 
         // Check if user can update this project
-        $canUpdate = $project->created_by === Auth::id()
+        $user = Auth::user();
+        $userRoles = $user->getRoleNames();
+        $isMasterAdmin = $userRoles->contains(function ($role) {
+            return strtolower($role) === 'master admin' || strtolower($role) === 'master_admin';
+        });
+
+        $canUpdate = $isMasterAdmin
+            || $project->created_by === Auth::id()
             || $project->project_manager_id === Auth::id();
 
         if (!$canUpdate) {
-            abort(403);
+            abort(403, 'You do not have permission to update this project.');
         }
 
         // Allow formatting like "$50,000" in UI; store numeric value in DB

@@ -3,6 +3,16 @@
 @section('title', $task->title . ' - Task Master K')
 
 @section('content')
+@php
+    $userRoleNames = auth()->user()
+        ? auth()->user()->roles->pluck('name')->map(fn($r) => strtolower($r))->all()
+        : [];
+    $isMasterAdmin = in_array('master admin', $userRoleNames) || in_array('master_admin', $userRoleNames);
+    $isTeamMember = $task->project->created_by === auth()->id()
+        || $task->project->project_manager_id === auth()->id()
+        || $task->project->teamMembers->contains('id', auth()->id());
+    $canEditTask = $isMasterAdmin || $isTeamMember;
+@endphp
 <div class="min-h-screen bg-gray-50">
     <!-- Header -->
     <div class="bg-white border-b border-gray-200">
@@ -60,9 +70,11 @@
                         </div>
                     </div>
                     
+                    @if($canEditTask)
                     <a href="{{ route('tasks.edit', $task->id) }}" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
                         <i class="fas fa-edit mr-2"></i>Edit Task
                     </a>
+                    @endif
                 </div>
             </div>
         </div>
@@ -323,6 +335,7 @@
                     </div>
 
                     <!-- Actions -->
+                    @if($canEditTask)
                     <div class="mt-6 pt-6 border-t border-gray-200 space-y-2">
                         <a href="{{ route('tasks.edit', $task->id) }}" class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
                             <i class="fas fa-edit mr-2"></i>Edit Task
@@ -335,6 +348,7 @@
                             </button>
                         </form>
                     </div>
+                    @endif
                 </div>
             </div>
         </div>

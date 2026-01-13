@@ -404,6 +404,7 @@
                                         type="checkbox"
                                         name="settings[taskTypes][equipmentId]"
                                         value="1"
+                                        checked
                                         class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                     >
                                 </div>
@@ -416,6 +417,7 @@
                                         type="checkbox"
                                         name="settings[taskTypes][customerName]"
                                         value="1"
+                                        checked
                                         class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                     >
                                 </div>
@@ -448,13 +450,14 @@
                                         type="checkbox"
                                         name="settings[requireApproval]"
                                         value="1"
+                                        checked
                                         class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                     >
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <div>
                                         <label class="text-sm font-medium text-gray-700">Time Tracking</label>
-                                        <p class="text-xs text-gray-500">Enable time tracking for tasks</p>
+                                        <p class="text-xs text-gray-500">Enable time tracking for tasks <i>(New feature pending release)</i></p>
                                     </div>
                                     <input
                                         type="checkbox"
@@ -473,6 +476,7 @@
                                         type="checkbox"
                                         name="settings[publicProject]"
                                         value="1"
+                                        checked
                                         class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                     >
                                 </div>

@@ -164,10 +164,21 @@ class TaskController extends Controller
         ])->findOrFail($id);
 
         // Check if user has access to this task's project
+        $user = Auth::user();
+        $userRoles = $user->getRoleNames();
+        $isMasterAdmin = $userRoles->contains(function ($role) {
+            return strtolower($role) === 'master admin' || strtolower($role) === 'master_admin';
+        });
+
         $project = $task->project;
-        $hasAccess = $project->created_by === Auth::id()
+        $projectSettings = $project->settings ?? [];
+        $isPublicProject = $projectSettings['publicProject'] ?? false;
+
+        $isTeamMember = $project->created_by === Auth::id()
             || $project->project_manager_id === Auth::id()
             || $project->teamMembers->contains('id', Auth::id());
+
+        $hasAccess = $isMasterAdmin || $isPublicProject || $isTeamMember;
 
         if (!$hasAccess) {
             abort(403);
@@ -184,14 +195,22 @@ class TaskController extends Controller
     {
         $task = Task::with(['taskList.project.teamMembers', 'attachments.uploader'])->findOrFail($id);
 
-        // Check if user has access to this task's project
+        // Check if user can edit this task (must be team member or master admin)
+        $user = Auth::user();
+        $userRoles = $user->getRoleNames();
+        $isMasterAdmin = $userRoles->contains(function ($role) {
+            return strtolower($role) === 'master admin' || strtolower($role) === 'master_admin';
+        });
+
         $project = $task->project;
-        $hasAccess = $project->created_by === Auth::id()
+        $isTeamMember = $project->created_by === Auth::id()
             || $project->project_manager_id === Auth::id()
             || $project->teamMembers->contains('id', Auth::id());
 
-        if (!$hasAccess) {
-            abort(403);
+        $canEdit = $isMasterAdmin || $isTeamMember;
+
+        if (!$canEdit) {
+            abort(403, 'You do not have permission to edit this task.');
         }
 
         $users = User::with('roles')->get();
@@ -203,6 +222,24 @@ class TaskController extends Controller
     public function update(Request $request, $id)
     {
         $task = Task::with('project')->findOrFail($id);
+
+        // Check if user can update this task (must be team member or master admin)
+        $user = Auth::user();
+        $userRoles = $user->getRoleNames();
+        $isMasterAdmin = $userRoles->contains(function ($role) {
+            return strtolower($role) === 'master admin' || strtolower($role) === 'master_admin';
+        });
+
+        $project = $task->project;
+        $isTeamMember = $project->created_by === Auth::id()
+            || $project->project_manager_id === Auth::id()
+            || $project->teamMembers->contains('id', Auth::id());
+
+        $canUpdate = $isMasterAdmin || $isTeamMember;
+
+        if (!$canUpdate) {
+            return redirect()->back()->with('error', 'You do not have permission to update this task.');
+        }
 
         $request->validate([
             'title' => 'nullable|string|max:255',
@@ -286,11 +323,32 @@ class TaskController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        $task = Task::with('project')->findOrFail($id);
+        $task = Task::with('project.teamMembers')->findOrFail($id);
 
         $request->validate([
             'status' => 'required|in:pending,in_progress,completed_pending_review,completed_approved,unapproved,approved,deployed',
         ]);
+
+        // Check if user can update this task's status (must be team member or master admin)
+        $user = Auth::user();
+        $userRoles = $user->getRoleNames();
+        $isMasterAdmin = $userRoles->contains(function ($role) {
+            return strtolower($role) === 'master admin' || strtolower($role) === 'master_admin';
+        });
+
+        $project = $task->project;
+        $isTeamMember = $project->created_by === Auth::id()
+            || $project->project_manager_id === Auth::id()
+            || $project->teamMembers->contains('id', Auth::id());
+
+        $canUpdate = $isMasterAdmin || $isTeamMember;
+
+        if (!$canUpdate) {
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'You do not have permission to update this task.'], 403);
+            }
+            return redirect()->back()->with('error', 'You do not have permission to update this task.');
+        }
 
         // Check if project requires approval and user is trying to approve
         if ($request->status === 'approved') {
@@ -339,7 +397,29 @@ class TaskController extends Controller
 
     public function destroy($id)
     {
-        $task = Task::findOrFail($id);
+        $task = Task::with('project.teamMembers')->findOrFail($id);
+
+        // Check if user can delete this task (must be team member or master admin)
+        $user = Auth::user();
+        $userRoles = $user->getRoleNames();
+        $isMasterAdmin = $userRoles->contains(function ($role) {
+            return strtolower($role) === 'master admin' || strtolower($role) === 'master_admin';
+        });
+
+        $project = $task->project;
+        $isTeamMember = $project->created_by === Auth::id()
+            || $project->project_manager_id === Auth::id()
+            || $project->teamMembers->contains('id', Auth::id());
+
+        $canDelete = $isMasterAdmin || $isTeamMember;
+
+        if (!$canDelete) {
+            if (request()->expectsJson()) {
+                return response()->json(['error' => 'You do not have permission to delete this task.'], 403);
+            }
+            return redirect()->back()->with('error', 'You do not have permission to delete this task.');
+        }
+
         $projectId = $task->project_id;
         $task->delete();
 

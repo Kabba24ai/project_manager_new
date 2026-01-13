@@ -33,37 +33,63 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-3">
-                    @if($project->created_by === auth()->id() || $project->project_manager_id === auth()->id())
-                    <a href="{{ route('projects.edit', $project->id) }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 transition-colors text-sm">
-                        <i class="fas fa-edit"></i>
-                        <span>Edit Project</span>
+                    <a href="{{ route('task-templates.index') }}" class="text-gray-600 hover:text-gray-900 text-sm font-medium transition-colors flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100">
+                        <i class="fas fa-copy"></i>
+                        <span>Templates</span>
                     </a>
-                    @endif
+                    
                     @php
+                        $canEdit = $project->created_by === auth()->id() || $project->project_manager_id === auth()->id();
                         $deleteAllowedRoles = ['admin', 'manager', 'master admin', 'master_admin', 'master-admin'];
                         $userRoleNames = auth()->user()
                             ? auth()->user()->roles->pluck('name')->map(fn($r) => strtolower($r))->all()
                             : [];
                         $canDeleteProject = !empty(array_intersect($userRoleNames, array_map('strtolower', $deleteAllowedRoles)));
                     @endphp
-                    @if($canDeleteProject)
-                    <form action="{{ route('projects.destroy', $project->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this project? This cannot be undone.');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center space-x-2 transition-colors text-sm">
-                            <i class="fas fa-trash"></i>
-                            <span>Delete Project</span>
+                    
+                    @if($canEdit || $canDeleteProject)
+                    <div class="relative" x-data="{ open: false }">
+                        <button 
+                            @click="open = !open"
+                            @click.away="open = false"
+                            class="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                        >
+                            <i class="fas fa-ellipsis-v"></i>
+                            <span>Actions</span>
+                            <i class="fas fa-chevron-down text-xs" :class="{ 'rotate-180': open }"></i>
                         </button>
-                    </form>
+                        
+                        <div 
+                            x-show="open"
+                            x-cloak
+                            x-transition:enter="transition ease-out duration-100"
+                            x-transition:enter-start="transform opacity-0 scale-95"
+                            x-transition:enter-end="transform opacity-100 scale-100"
+                            x-transition:leave="transition ease-in duration-75"
+                            x-transition:leave-start="transform opacity-100 scale-100"
+                            x-transition:leave-end="transform opacity-0 scale-95"
+                            class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                        >
+                            @if($canEdit)
+                            <a href="{{ route('projects.edit', $project->id) }}" class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                                <i class="fas fa-edit w-4"></i>
+                                <span>Edit Project</span>
+                            </a>
+                            @endif
+                            
+                            @if($canDeleteProject)
+                            <form action="{{ route('projects.destroy', $project->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this project? This cannot be undone.');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="w-full flex items-center space-x-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                                    <i class="fas fa-trash w-4"></i>
+                                    <span>Delete Project</span>
+                                </button>
+                            </form>
+                            @endif
+                        </div>
+                    </div>
                     @endif
-                    <!-- <button class="text-gray-600 hover:text-gray-900 text-sm font-medium transition-colors flex items-center space-x-2">
-                        <i class="fas fa-users"></i>
-                        <span>Team</span>
-                    </button> -->
-                    <a href="{{ route('task-templates.index') }}" class="text-gray-600 hover:text-gray-900 text-sm font-medium transition-colors flex items-center space-x-2">
-                        <i class="fas fa-copy"></i>
-                        <span>Templates</span>
-                    </a>
                 </div>
             </div>
             <div class="flex items-center justify-between">
@@ -108,7 +134,7 @@
                 <div class="flex items-center space-x-3">
                     <!-- Team Avatars -->
                     <div class="flex -space-x-2">
-                        @foreach($project->teamMembers->take(4) as $member)
+                        @foreach($project->teamMembers->sortBy('name')->take(4) as $member)
                         <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-white text-xs font-medium text-white" title="{{ $member->name }}">
                             {{ strtoupper(substr($member->name, 0, 2)) }}
                         </div>
@@ -131,6 +157,60 @@
 
     <!-- Content -->
     <div class="max-w-7xl mx-auto px-6 py-8">
+
+    <!-- Project Attachments -->
+    @if($project->attachments->count() > 0)
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                    <i class="fas fa-paperclip text-gray-500"></i>
+                    <span>Project Documents</span>
+                    <span class="text-sm font-normal text-gray-500">({{ $project->attachments->count() }})</span>
+                </h3>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                @foreach($project->attachments as $attachment)
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+                    <div class="flex items-center space-x-3 flex-1 min-w-0">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg {{ 
+                            str_starts_with($attachment->mime_type, 'image/') ? 'bg-green-100 text-green-600' :
+                            (str_starts_with($attachment->mime_type, 'video/') ? 'bg-purple-100 text-purple-600' :
+                            ($attachment->mime_type === 'application/pdf' ? 'bg-red-100 text-red-600' :
+                            (str_contains($attachment->mime_type, 'word') ? 'bg-blue-100 text-blue-600' :
+                            (str_contains($attachment->mime_type, 'excel') || str_contains($attachment->mime_type, 'sheet') ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-600'))))
+                        }}">
+                            <i class="fas {{ 
+                                str_starts_with($attachment->mime_type, 'image/') ? 'fa-image' :
+                                (str_starts_with($attachment->mime_type, 'video/') ? 'fa-video' :
+                                ($attachment->mime_type === 'application/pdf' ? 'fa-file-pdf' :
+                                (str_contains($attachment->mime_type, 'word') ? 'fa-file-word' :
+                                (str_contains($attachment->mime_type, 'excel') || str_contains($attachment->mime_type, 'sheet') ? 'fa-file-excel' : 'fa-file'))))
+                            }}"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900 truncate" title="{{ $attachment->original_filename }}">
+                                {{ $attachment->original_filename }}
+                            </p>
+                            <div class="flex items-center space-x-2 text-xs text-gray-500">
+                                <span>{{ number_format($attachment->size / 1024 / 1024, 2) }} MB</span>
+                                <span>•</span>
+                                <span>{{ $attachment->uploader->name ?? 'Unknown' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <a 
+                        href="{{ route('attachments.download', $attachment->id) }}" 
+                        class="ml-2 p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                        title="Download"
+                    >
+                        <i class="fas fa-download"></i>
+                    </a>
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
         <!-- Task Filters -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
             <div class="flex flex-col lg:flex-row lg:items-end gap-4">
@@ -172,6 +252,8 @@
             </div>
             <p class="text-xs text-gray-500 mt-3">Filters apply across all task lists on this project view.</p>
         </div>
+
+        
 
         @if($project->taskLists->count() > 0)
         <!-- Task Lists with Tasks -->

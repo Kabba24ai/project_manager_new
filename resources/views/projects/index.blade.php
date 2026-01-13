@@ -318,15 +318,69 @@
                                         <p class="text-sm text-gray-800 line-clamp-2">{{ $lastComment->content }}</p>
                                     </div>
                                     @endif
-                                            @if($status === 'review')
                                             <div class="mt-2 flex items-center space-x-2">
+                                                @if($status === 'pending')
+                                                <span class="text-xs text-gray-500">Created By: {{ $item['task']->creator->name ?? 'Unknown' }}</span>
+                                                <span class="text-xs text-gray-500">Created: {{ $item['task']->created_at->format('m/d/Y, h:i A') }}</span>
+                                                @else
                                                 <span class="text-xs text-gray-500">Updated By: {{ $item['task']->creator->name ?? 'Unknown' }}</span>
                                                 <span class="text-xs text-gray-500">Updated: {{ $item['task']->updated_at->format('m/d/Y, h:i A') }}</span>
+                                                @endif
                                             </div>
-                                            @endif
                                         </div>
 
-                                        <div class="flex space-x-2 ml-4 flex-shrink-0">
+                                        <div class="flex space-x-2 ml-4">
+                                            @if($status === 'review' || $status === 'approved' || $status === 'unapproved')
+                                            @php
+                                                $projectSettings = $item['project']->settings ?? [];
+                                                $requireApproval = $projectSettings['requireApproval'] ?? false;
+                                                $canApprove = !$requireApproval || (auth()->id() === $item['project']->project_manager_id);
+                                            @endphp
+                                            @if($status === 'review')
+                                                @if($canApprove)
+                                                <form action="{{ route('tasks.update-status', $item['task']->id) }}" method="POST" class="inline">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <input type="hidden" name="status" value="approved">
+                                                    <button type="submit" class="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-1">
+                                                        <i class="fas fa-check-circle"></i>
+                                                        <span>Approve</span>
+                                                    </button>
+                                                </form>
+                                                @endif
+                                            <form action="{{ route('tasks.update-status', $item['task']->id) }}" method="POST" class="inline">
+                                                @csrf
+                                                @method('PATCH')
+                                                <input type="hidden" name="status" value="unapproved">
+                                                <button type="submit" class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-1">
+                                                    <i class="fas fa-times-circle"></i>
+                                                    <span>Unapprove</span>
+                                                </button>
+                                            </form>
+                                            @elseif($status === 'approved')
+                                            <form action="{{ route('tasks.update-status', $item['task']->id) }}" method="POST" class="inline">
+                                                @csrf
+                                                @method('PATCH')
+                                                <input type="hidden" name="status" value="unapproved">
+                                                <button type="submit" class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-1">
+                                                    <i class="fas fa-times-circle"></i>
+                                                    <span>Unapprove</span>
+                                                </button>
+                                            </form>
+                                            @elseif($status === 'unapproved')
+                                                @if($canApprove)
+                                                <form action="{{ route('tasks.update-status', $item['task']->id) }}" method="POST" class="inline">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <input type="hidden" name="status" value="approved">
+                                                    <button type="submit" class="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-1">
+                                                        <i class="fas fa-check-circle"></i>
+                                                        <span>Approve</span>
+                                                    </button>
+                                                </form>
+                                                @endif
+                                            @endif
+                                            @endif
                                             <a href="{{ route('tasks.show', $item['task']->id) }}" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-1">
                                                 <i class="fas fa-eye"></i>
                                                 <span>View Task</span>

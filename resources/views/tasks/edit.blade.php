@@ -100,6 +100,11 @@
 
                             <div>
                                 <label for="task_status" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                                @php
+                                    $projectSettings = $task->project->settings ?? [];
+                                    $requireApproval = $projectSettings['requireApproval'] ?? false;
+                                    $canApprove = !$requireApproval || (auth()->id() === $task->project->project_manager_id);
+                                @endphp
                                 <select 
                                     name="task_status" 
                                     id="task_status"
@@ -108,7 +113,9 @@
                                     <option value="pending" {{ old('task_status', $task->task_status) == 'pending' ? 'selected' : '' }}>Pending</option>
                                     <option value="in_progress" {{ old('task_status', $task->task_status) == 'in_progress' ? 'selected' : '' }}>In Progress</option>
                                     <option value="completed_pending_review" {{ old('task_status', $task->task_status) == 'completed_pending_review' ? 'selected' : '' }}>Review</option>
+                                    @if($canApprove)
                                     <option value="approved" {{ old('task_status', $task->task_status) == 'approved' ? 'selected' : '' }}>Approved</option>
+                                    @endif
                                     <option value="unapproved" {{ old('task_status', $task->task_status) == 'unapproved' ? 'selected' : '' }}>Unapproved</option>
                                     <option value="deployed" {{ old('task_status', $task->task_status) == 'deployed' ? 'selected' : '' }}>Deployed</option>
                                 </select>

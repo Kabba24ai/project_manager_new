@@ -56,9 +56,9 @@
                                 {{ auth()->user()->email }}
                             </div>
                             @if(auth()->user()->role)
-                                <div class="px-4 py-2 text-xs text-gray-500 capitalize">
-                                    Role: {{ auth()->user()->role }}
-                                </div>
+                            <div class="px-4 py-2 text-xs text-gray-500 capitalize">
+                                Role: {{ auth()->user()->role }}
+                            </div>
                             @endif
                             <hr class="my-1">
                             <form method="POST" action="{{ route('logout') }}">

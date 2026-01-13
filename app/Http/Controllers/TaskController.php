@@ -36,9 +36,8 @@ class TaskController extends Controller
 
         $users = User::with('roles')
             ->whereIn('id', $projectUserIds)
-            ->get()
-            ->sortBy('name')
-            ->values();
+            ->orderBy('first_name')
+            ->get();
         $taskListId = request('task_list_id');
         
         // Load equipment categories with their equipment
@@ -203,7 +202,7 @@ class TaskController extends Controller
 
     public function update(Request $request, $id)
     {
-        $task = Task::findOrFail($id);
+        $task = Task::with('project')->findOrFail($id);
 
         $request->validate([
             'title' => 'nullable|string|max:255',
@@ -222,6 +221,20 @@ class TaskController extends Controller
             'attachments' => 'nullable|array',
             'attachments.*' => 'file|max:51200|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,webm,pdf',
         ]);
+
+        // Check if project requires approval and user is trying to change status to approved
+        if ($request->filled('task_status') && $request->task_status === 'approved') {
+            $project = $task->project;
+            $settings = $project->settings ?? [];
+            $requireApproval = $settings['requireApproval'] ?? false;
+
+            if ($requireApproval) {
+                // Only project manager can approve when requireApproval is true
+                if (Auth::id() !== $project->project_manager_id) {
+                    return redirect()->back()->with('error', 'Only the project manager can approve tasks for this project.');
+                }
+            }
+        }
 
         $task->update($request->only([
             'title',
@@ -273,11 +286,30 @@ class TaskController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        $task = Task::findOrFail($id);
+        $task = Task::with('project')->findOrFail($id);
 
         $request->validate([
             'status' => 'required|in:pending,in_progress,completed_pending_review,completed_approved,unapproved,approved,deployed',
         ]);
+
+        // Check if project requires approval and user is trying to approve
+        if ($request->status === 'approved') {
+            $project = $task->project;
+            $settings = $project->settings ?? [];
+            $requireApproval = $settings['requireApproval'] ?? false;
+
+            if ($requireApproval) {
+                // Only project manager can approve when requireApproval is true
+                if (Auth::id() !== $project->project_manager_id) {
+                    if ($request->expectsJson()) {
+                        return response()->json([
+                            'error' => 'Only the project manager can approve tasks for this project.'
+                        ], 403);
+                    }
+                    return redirect()->back()->with('error', 'Only the project manager can approve tasks for this project.');
+                }
+            }
+        }
 
         $task->update(['task_status' => $request->status]);
 

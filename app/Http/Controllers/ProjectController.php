@@ -67,7 +67,8 @@ class ProjectController extends Controller
             'teamMembers',
             'taskLists.tasks.assignedUser',
             'taskLists.tasks.creator',
-            'taskLists.tasks.comments'
+            'taskLists.tasks.comments',
+            'attachments.uploader'
         ])->findOrFail($id);
 
         // Check if user has access to this project
@@ -97,8 +98,8 @@ class ProjectController extends Controller
 
         $managers = $managerRoles->isEmpty()
             ? collect()
-            : User::role($managerRoles)->with('roles')->get();
-        $users = User::with('roles')->get();
+            : User::role($managerRoles)->with('roles')->orderBy('first_name')->get();
+        $users = User::with('roles')->orderBy('first_name')->get();
 
         return view('projects.create', compact('managers', 'users'));
     }
@@ -124,7 +125,31 @@ class ProjectController extends Controller
             'project_manager_id' => 'nullable|exists:users,id',
             'team_members' => 'nullable|array',
             'team_members.*' => 'exists:users,id',
+            'objectives' => 'nullable|array',
+            'deliverables' => 'nullable|array',
+            'tags' => 'nullable|array',
+            'settings' => 'nullable|array',
+            'attachments' => 'nullable|array',
+            'attachments.*' => 'file|max:51200', // 50MB max
         ]);
+
+        // Filter out empty objectives and deliverables
+        $objectives = $request->objectives ? array_values(array_filter($request->objectives, fn($v) => !empty(trim($v)))) : [];
+        $deliverables = $request->deliverables ? array_values(array_filter($request->deliverables, fn($v) => !empty(trim($v)))) : [];
+        $tags = $request->tags ?? [];
+        
+        // Process settings
+        $settings = [
+            'taskTypes' => [
+                'general' => $request->input('settings.taskTypes.general', false) ? true : false,
+                'equipmentId' => $request->input('settings.taskTypes.equipmentId', false) ? true : false,
+                'customerName' => $request->input('settings.taskTypes.customerName', false) ? true : false,
+            ],
+            'allowFileUploads' => $request->input('settings.allowFileUploads', false) ? true : false,
+            'requireApproval' => $request->input('settings.requireApproval', false) ? true : false,
+            'enableTimeTracking' => $request->input('settings.enableTimeTracking', false) ? true : false,
+            'publicProject' => $request->input('settings.publicProject', false) ? true : false,
+        ];
 
         $project = Project::create([
             'name' => $request->name,
@@ -135,6 +160,10 @@ class ProjectController extends Controller
             'due_date' => $request->due_date,
             'budget' => $request->budget,
             'client' => $request->client,
+            'objectives' => $objectives,
+            'deliverables' => $deliverables,
+            'tags' => $tags,
+            'settings' => $settings,
             'created_by' => Auth::id(),
             'project_manager_id' => $request->project_manager_id ?? Auth::id(),
         ]);
@@ -142,6 +171,24 @@ class ProjectController extends Controller
         // Sync team members if provided
         if ($request->has('team_members')) {
             $project->teamMembers()->sync($request->team_members);
+        }
+
+        // Handle file uploads
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $originalName = $file->getClientOriginalName();
+                $filename = time() . '_' . uniqid() . '_' . $originalName;
+                $path = $file->storeAs('projects/' . $project->id, $filename, 'public');
+                
+                $project->attachments()->create([
+                    'filename' => $filename,
+                    'original_filename' => $originalName,
+                    'path' => $path,
+                    'mime_type' => $file->getClientMimeType(),
+                    'size' => $file->getSize(),
+                    'uploaded_by' => Auth::id(),
+                ]);
+            }
         }
 
         if ($request->expectsJson()) {
@@ -172,8 +219,8 @@ class ProjectController extends Controller
 
         $managers = $managerRoles->isEmpty()
             ? collect()
-            : User::role($managerRoles)->with('roles')->get();
-        $users = User::with('roles')->get();
+            : User::role($managerRoles)->with('roles')->orderBy('first_name')->get();
+        $users = User::with('roles')->orderBy('first_name')->get();
 
         return view('projects.edit', compact('project', 'managers', 'users'));
     }
@@ -207,23 +254,69 @@ class ProjectController extends Controller
             'budget' => 'nullable|numeric',
             'client' => 'nullable|string|max:255',
             'project_manager_id' => 'nullable|exists:users,id',
+            'objectives' => 'nullable|array',
+            'deliverables' => 'nullable|array',
+            'tags' => 'nullable|array',
+            'settings' => 'nullable|array',
+            'attachments' => 'nullable|array',
+            'attachments.*' => 'file|max:51200', // 50MB max
         ]);
 
-        $project->update($request->only([
-            'name',
-            'description',
-            'status',
-            'priority',
-            'start_date',
-            'due_date',
-            'budget',
-            'client',
-            'project_manager_id',
-        ]));
+        // Filter out empty objectives and deliverables
+        $objectives = $request->objectives ? array_values(array_filter($request->objectives, fn($v) => !empty(trim($v)))) : [];
+        $deliverables = $request->deliverables ? array_values(array_filter($request->deliverables, fn($v) => !empty(trim($v)))) : [];
+        $tags = $request->tags ?? [];
+        
+        // Process settings
+        $settings = [
+            'taskTypes' => [
+                'general' => $request->input('settings.taskTypes.general', false) ? true : false,
+                'equipmentId' => $request->input('settings.taskTypes.equipmentId', false) ? true : false,
+                'customerName' => $request->input('settings.taskTypes.customerName', false) ? true : false,
+            ],
+            'allowFileUploads' => $request->input('settings.allowFileUploads', false) ? true : false,
+            'requireApproval' => $request->input('settings.requireApproval', false) ? true : false,
+            'enableTimeTracking' => $request->input('settings.enableTimeTracking', false) ? true : false,
+            'publicProject' => $request->input('settings.publicProject', false) ? true : false,
+        ];
+
+        $project->update([
+            'name' => $request->name,
+            'description' => $request->description,
+            'status' => $request->status ?? 'active',
+            'priority' => $request->priority ?? 'medium',
+            'start_date' => $request->start_date,
+            'due_date' => $request->due_date,
+            'budget' => $request->budget,
+            'client' => $request->client,
+            'project_manager_id' => $request->project_manager_id,
+            'objectives' => $objectives,
+            'deliverables' => $deliverables,
+            'tags' => $tags,
+            'settings' => $settings,
+        ]);
 
         // Sync team members if provided
         if ($request->has('team_members')) {
             $project->teamMembers()->sync($request->team_members);
+        }
+
+        // Handle file uploads
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $originalName = $file->getClientOriginalName();
+                $filename = time() . '_' . uniqid() . '_' . $originalName;
+                $path = $file->storeAs('projects/' . $project->id, $filename, 'public');
+                
+                $project->attachments()->create([
+                    'filename' => $filename,
+                    'original_filename' => $originalName,
+                    'path' => $path,
+                    'mime_type' => $file->getClientMimeType(),
+                    'size' => $file->getSize(),
+                    'uploaded_by' => Auth::id(),
+                ]);
+            }
         }
 
         if ($request->expectsJson()) {

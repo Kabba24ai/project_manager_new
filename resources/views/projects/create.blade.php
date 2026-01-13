@@ -39,7 +39,7 @@
             </template>
         </div>
 
-        <form action="{{ route('projects.store') }}" method="POST" @submit="return validateStep()">
+        <form action="{{ route('projects.store') }}" method="POST" enctype="multipart/form-data" @submit="return validateStep()">
             @csrf
             
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
@@ -117,15 +117,15 @@
                             <label for="budget" class="block text-sm font-medium text-gray-700 mb-2">Budget (Optional)</label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-500">$</span>
-                                <input 
-                                    type="text" 
-                                    id="budget" 
-                                    name="budget"
-                                    value="{{ old('budget') }}"
+                            <input 
+                                type="text" 
+                                id="budget" 
+                                name="budget"
+                                value="{{ old('budget') }}"
                                     class="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                                     placeholder="50,000"
                                     inputmode="decimal"
-                                >
+                            >
                             </div>
                         </div>
                     </div>
@@ -181,6 +181,7 @@
                             name="project_manager_id"
                             required
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors @error('project_manager_id') border-red-300 bg-red-50 @enderror"
+                            @change="errors.projectManager = ''"
                         >
                             <option value="">Select project manager</option>
                             @foreach($managers as $manager)
@@ -192,6 +193,7 @@
                         @error('project_manager_id')
                         <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                         @enderror
+                        <p x-show="errors.projectManager" x-text="errors.projectManager" class="mt-2 text-sm text-red-600"></p>
                     </div>
 
                     <div x-data="{
@@ -199,6 +201,7 @@
                         toggleAll() {
                             const boxes = this.$root.querySelectorAll(`input[name='team_members[]']`);
                             boxes.forEach(b => { b.checked = this.allSelected; });
+                            errors.teamMembers = '';
                         },
                         syncAllSelected() {
                             const boxes = Array.from(this.$root.querySelectorAll(`input[name='team_members[]']`));
@@ -233,7 +236,7 @@
                                         name="team_members[]" 
                                         value="{{ $user->id }}"
                                         class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                        @change="syncAllSelected()"
+                                        @change="syncAllSelected(); errors.teamMembers = ''"
                                     >
                                     <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                                         <span class="text-xs font-medium text-white">{{ strtoupper(substr($user->name, 0, 1)) }}</span>
@@ -246,19 +249,293 @@
                                 @endforeach
                             </div>
                         </div>
+                        <p x-show="errors.teamMembers" x-text="errors.teamMembers" class="mt-2 text-sm text-red-600"></p>
                     </div>
                 </div>
 
-                <!-- Step 3: Project Summary -->
+                <!-- Step 3: Project Planning -->
                 <div x-show="currentStep === 3" class="space-y-6">
                     <div class="text-center mb-8">
-                        <h2 class="text-xl font-semibold text-gray-900 mb-2">Review & Confirm</h2>
-                        <p class="text-gray-600">Please review the project details before creating</p>
+                        <h2 class="text-xl font-semibold text-gray-900 mb-2">Project Planning</h2>
+                        <p class="text-gray-600">Define objectives, deliverables, and project tags</p>
                     </div>
 
-                    <div class="bg-gray-50 rounded-lg p-6 space-y-4">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Project Summary</h3>
-                        <p class="text-sm text-gray-600">Review all the information and click "Create Project" when ready.</p>
+                    <div class="space-y-6">
+                        <!-- Project Objectives -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Project Objectives</label>
+                            <div class="space-y-3">
+                                <template x-for="(objective, index) in objectives" :key="index">
+                                    <div class="flex items-center space-x-2">
+                                        <input
+                                            type="text"
+                                            :name="'objectives[' + index + ']'"
+                                            x-model="objectives[index]"
+                                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            :placeholder="'Objective ' + (index + 1)"
+                                        >
+                                        <button
+                                            type="button"
+                                            x-show="objectives.length > 1"
+                                            @click="removeObjective(index)"
+                                            class="p-2 text-red-500 hover:text-red-700 transition-colors"
+                                        >
+                                            <i class="fas fa-minus w-4 h-4"></i>
+                                        </button>
+                                    </div>
+                                </template>
+                                <button
+                                    type="button"
+                                    @click="addObjective()"
+                                    class="flex items-center space-x-2 text-blue-600 hover:text-blue-800 transition-colors"
+                                >
+                                    <i class="fas fa-plus w-4 h-4"></i>
+                                    <span>Add Objective</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Key Deliverables -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Key Deliverables</label>
+                            <div class="space-y-3">
+                                <template x-for="(deliverable, index) in deliverables" :key="index">
+                                    <div class="flex items-center space-x-2">
+                                        <input
+                                            type="text"
+                                            :name="'deliverables[' + index + ']'"
+                                            x-model="deliverables[index]"
+                                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            :placeholder="'Deliverable ' + (index + 1)"
+                                        >
+                                        <button
+                                            type="button"
+                                            x-show="deliverables.length > 1"
+                                            @click="removeDeliverable(index)"
+                                            class="p-2 text-red-500 hover:text-red-700 transition-colors"
+                                        >
+                                            <i class="fas fa-minus w-4 h-4"></i>
+                                        </button>
+                                    </div>
+                                </template>
+                                <button
+                                    type="button"
+                                    @click="addDeliverable()"
+                                    class="flex items-center space-x-2 text-blue-600 hover:text-blue-800 transition-colors"
+                                >
+                                    <i class="fas fa-plus w-4 h-4"></i>
+                                    <span>Add Deliverable</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Project Tags -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Project Tags</label>
+                            <div class="flex items-center space-x-2 mb-3">
+                                <input
+                                    type="text"
+                                    x-model="tagInput"
+                                    class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                    placeholder="Add tags (e.g., web, mobile, design)"
+                                >
+                                <button
+                                    type="button"
+                                    @click="addTag()"
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                >
+                                    Add
+                                </button>
+                            </div>
+                            <!-- Hidden inputs for tags -->
+                            <template x-for="(tag, index) in tags" :key="index">
+                                <input type="hidden" :name="'tags[' + index + ']'" :value="tag">
+                            </template>
+                            <!-- Display tags -->
+                            <div x-show="tags.length > 0" class="flex flex-wrap gap-2">
+                                <template x-for="(tag, index) in tags" :key="index">
+                                    <div class="flex items-center space-x-1 bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
+                                        <span class="text-sm" x-text="tag"></span>
+                                        <button
+                                            type="button"
+                                            @click="removeTag(index)"
+                                            class="text-blue-600 hover:text-blue-800"
+                                        >
+                                            <i class="fas fa-times w-3 h-3"></i>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Settings & Attachments -->
+                <div x-show="currentStep === 4" class="space-y-6">
+                    <div class="text-center mb-8">
+                        <h2 class="text-xl font-semibold text-gray-900 mb-2">Project Settings</h2>
+                        <p class="text-gray-600">Configure project settings and add any initial documents</p>
+                    </div>
+
+                    <div class="space-y-6">
+                        <!-- Task Configuration -->
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">Task Configuration</h3>
+                            <div class="space-y-4 p-4 bg-gray-50 rounded-lg">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-700">General Tasks</label>
+                                        <p class="text-xs text-gray-500">Standard project tasks with manual entry</p>
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        name="settings[taskTypes][general]"
+                                        value="1"
+                                        checked
+                                        class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    >
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-700">Equipment ID Tasks</label>
+                                        <p class="text-xs text-gray-500">Tasks linked to specific equipment items</p>
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        name="settings[taskTypes][equipmentId]"
+                                        value="1"
+                                        class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    >
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-700">Customer Tasks</label>
+                                        <p class="text-xs text-gray-500">Tasks associated with specific customers</p>
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        name="settings[taskTypes][customerName]"
+                                        value="1"
+                                        class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    >
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Project Features -->
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">Project Features</h3>
+                            <div class="space-y-4 p-4 bg-gray-50 rounded-lg">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-700">File Uploads</label>
+                                        <p class="text-xs text-gray-500">Allow team members to upload files to tasks</p>
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        name="settings[allowFileUploads]"
+                                        value="1"
+                                        checked
+                                        class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    >
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-700">Task Approval Required</label>
+                                        <p class="text-xs text-gray-500">Require manager approval for task completion</p>
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        name="settings[requireApproval]"
+                                        value="1"
+                                        class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    >
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-700">Time Tracking</label>
+                                        <p class="text-xs text-gray-500">Enable time tracking for tasks</p>
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        name="settings[enableTimeTracking]"
+                                        value="1"
+                                        checked
+                                        class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    >
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-700">Public Project</label>
+                                        <p class="text-xs text-gray-500">Make project visible to all organization members</p>
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        name="settings[publicProject]"
+                                        value="1"
+                                        class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    >
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Project Documents -->
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">Project Documents</h3>
+                            <div class="space-y-4">
+                                <div class="flex items-center space-x-3">
+                                    <button
+                                        type="button"
+                                        @click="$refs.fileInput.click()"
+                                        class="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <i class="fas fa-upload w-4 h-4"></i>
+                                        <span>Upload Files</span>
+                                    </button>
+                                    <span class="text-sm text-gray-500">
+                                        Add project documents, specifications, or reference materials
+                                    </span>
+                                </div>
+
+                                <input
+                                    x-ref="fileInput"
+                                    type="file"
+                                    name="attachments[]"
+                                    multiple
+                                    accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+                                    @change="handleFileUpload($event)"
+                                    class="hidden"
+                                >
+
+                                <div x-show="attachments.length > 0" class="space-y-3">
+                                    <h4 class="text-sm font-medium text-gray-900">
+                                        Attached Files (<span x-text="attachments.length"></span>)
+                                    </h4>
+                                    <div class="space-y-2">
+                                        <template x-for="(file, index) in attachments" :key="index">
+                                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                                                <div class="flex items-center space-x-3">
+                                                    <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg bg-blue-100 text-blue-600">
+                                                        <i class="fas fa-file"></i>
+                                                    </div>
+                                                    <div class="flex-1 min-w-0">
+                                                        <p class="text-sm font-medium text-gray-900 truncate" x-text="file.name"></p>
+                                                        <p class="text-xs text-gray-500" x-text="(file.size / 1024 / 1024).toFixed(2) + ' MB'"></p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    @click="removeAttachment(index)"
+                                                    class="p-1 text-gray-400 hover:text-red-500 transition-colors rounded"
+                                                >
+                                                    <i class="fas fa-times w-4 h-4"></i>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -285,7 +562,7 @@
                         
                         <button 
                             type="button"
-                            x-show="currentStep < 3"
+                            x-show="currentStep < 4"
                             @click="nextStep()"
                             class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                         >
@@ -294,7 +571,7 @@
 
                         <button 
                             type="submit"
-                            x-show="currentStep === 3"
+                            x-show="currentStep === 4"
                             class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
                         >
                             <i class="fas fa-save"></i>
@@ -313,16 +590,50 @@ function projectForm() {
     return {
         currentStep: 1,
         priority: 'medium',
+        objectives: [''],
+        deliverables: [''],
+        tags: [],
+        tagInput: '',
+        attachments: [],
+        errors: {
+            projectManager: '',
+            teamMembers: ''
+        },
         
         nextStep() {
-            if (this.currentStep < 3) {
+            // Validate Step 2: Team Assignment
+            if (this.currentStep === 2) {
+                this.errors.projectManager = '';
+                this.errors.teamMembers = '';
+                
+                const projectManagerSelect = document.getElementById('project_manager_id');
+                const teamMemberCheckboxes = document.querySelectorAll('input[name="team_members[]"]:checked');
+                
+                let hasError = false;
+                
+                if (!projectManagerSelect || !projectManagerSelect.value) {
+                    this.errors.projectManager = 'Please select a project manager';
+                    hasError = true;
+                }
+                
+                if (teamMemberCheckboxes.length === 0) {
+                    this.errors.teamMembers = 'Please select at least one team member';
+                    hasError = true;
+                }
+                
+                if (hasError) {
+                    return;
+                }
+            }
+            
+            if (this.currentStep < 4) {
                 this.currentStep++;
             }
         },
         
         validateStep() {
             // Basic client-side validation
-            if (this.currentStep !== 3) {
+            if (this.currentStep !== 4) {
                 return false;
             }
             return true;
@@ -336,6 +647,54 @@ function projectForm() {
                 urgent: 'bg-red-100 text-red-700 border-red-300'
             };
             return colors[this.priority] || colors.medium;
+        },
+        
+        // Objectives
+        addObjective() {
+            this.objectives.push('');
+        },
+        
+        removeObjective(index) {
+            if (this.objectives.length > 1) {
+                this.objectives.splice(index, 1);
+            }
+        },
+        
+        // Deliverables
+        addDeliverable() {
+            this.deliverables.push('');
+        },
+        
+        removeDeliverable(index) {
+            if (this.deliverables.length > 1) {
+                this.deliverables.splice(index, 1);
+            }
+        },
+        
+        // Tags
+        addTag() {
+            if (this.tagInput.trim() && !this.tags.includes(this.tagInput.trim())) {
+                this.tags.push(this.tagInput.trim());
+                this.tagInput = '';
+            }
+        },
+        
+        removeTag(index) {
+            this.tags.splice(index, 1);
+        },
+        
+        // File attachments
+        handleFileUpload(event) {
+            const files = Array.from(event.target.files);
+            this.attachments = [...this.attachments, ...files];
+        },
+        
+        removeAttachment(index) {
+            this.attachments.splice(index, 1);
+            // Reset file input
+            if (this.$refs.fileInput) {
+                this.$refs.fileInput.value = '';
+            }
         }
     }
 }

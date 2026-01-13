@@ -129,9 +129,17 @@
                                 ['value' => 'unapproved', 'label' => 'Unapproved', 'icon' => 'times-circle', 'activeColor' => 'bg-red-600 text-white border-red-600'],
                                 ['value' => 'approved', 'label' => 'Approved', 'icon' => 'check-circle', 'activeColor' => 'bg-green-600 text-white border-green-600'],
                             ];
+
+                            // Check if user can approve tasks for this project
+                            $projectSettings = $task->project->settings ?? [];
+                            $requireApproval = $projectSettings['requireApproval'] ?? false;
+                            $canApprove = !$requireApproval || (auth()->id() === $task->project->project_manager_id);
                         @endphp
                         
                         @foreach($statuses as $status)
+                            @if($status['value'] === 'approved' && !$canApprove)
+                                @continue
+                            @endif
                         <form action="{{ route('tasks.update-status', $task->id) }}" method="POST" class="inline-block">
                             @csrf
                             @method('PATCH')

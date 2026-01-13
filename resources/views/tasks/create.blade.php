@@ -62,8 +62,32 @@
                     
                     <input type="hidden" name="task_type" x-model="taskType">
                     
-                    <div class="grid grid-cols-3 gap-4">
+                    @php
+                        // If project has no settings, enable all task types by default
+                        $hasSettings = isset($project->settings['taskTypes']);
+                        
+                        $enabledTaskTypes = [];
+                        $generalEnabled = $hasSettings 
+                            ? (isset($project->settings['taskTypes']['general']) && $project->settings['taskTypes']['general'])
+                            : true;
+                        $equipmentEnabled = $hasSettings 
+                            ? (isset($project->settings['taskTypes']['equipmentId']) && $project->settings['taskTypes']['equipmentId'])
+                            : true;
+                        $customerEnabled = $hasSettings 
+                            ? (isset($project->settings['taskTypes']['customerName']) && $project->settings['taskTypes']['customerName'])
+                            : true;
+                        
+                        if ($generalEnabled) $enabledTaskTypes[] = 'general';
+                        if ($equipmentEnabled) $enabledTaskTypes[] = 'equipmentId';
+                        if ($customerEnabled) $enabledTaskTypes[] = 'customerName';
+                        
+                        $enabledCount = count($enabledTaskTypes);
+                        $gridClass = $enabledCount === 3 ? 'grid-cols-3' : ($enabledCount === 2 ? 'grid-cols-2' : 'grid-cols-1');
+                    @endphp
+                    
+                    <div class="grid {{ $gridClass }} gap-4">
                         <!-- General Task -->
+                        @if($generalEnabled)
                         <div class="relative" @mouseenter="showTooltip = 'general'" @mouseleave="showTooltip = null">
                             <button
                                 type="button"
@@ -82,8 +106,10 @@
                                 <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
                             </div>
                         </div>
+                        @endif
                         
                         <!-- Equipment ID Task -->
+                        @if($equipmentEnabled)
                         <div class="relative" @mouseenter="showTooltip = 'equipment'" @mouseleave="showTooltip = null">
                             <button
                                 type="button"
@@ -102,8 +128,10 @@
                                 <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
                             </div>
                         </div>
+                        @endif
                         
                         <!-- Customer Name Task -->
+                        @if($customerEnabled)
                         <div class="relative" @mouseenter="showTooltip = 'customer'" @mouseleave="showTooltip = null">
                             <button
                                 type="button"
@@ -122,7 +150,15 @@
                                 <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
                             </div>
                         </div>
+                        @endif
                     </div>
+                    
+                    @if(count($enabledTaskTypes) === 0)
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-info-circle text-3xl mb-2"></i>
+                        <p>No task types are enabled for this project. Please contact the project manager to enable task types in project settings.</p>
+                    </div>
+                    @endif
                 </div>
 
                 <!-- Step 2: Task Details (changes based on task type) -->

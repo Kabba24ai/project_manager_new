@@ -314,7 +314,17 @@
                         <!-- Task Type -->
                         <div>
                             <label class="block text-sm font-medium text-gray-500 mb-1">Task Type</label>
-                            <p class="text-sm text-gray-900">{{ ucfirst(str_replace('_', ' ', $task->task_type)) }}</p>
+                            @php
+                                $taskTypeLabels = [
+                                    'general' => 'General',
+                                    'equipmentId' => 'Equipment ID',
+                                    'customerName' => 'Customer Name',
+                                    'feature' => 'Feature',
+                                    'bug' => 'Bug',
+                                    'design' => 'Design',
+                                ];
+                            @endphp
+                            <p class="text-sm text-gray-900">{{ $taskTypeLabels[$task->task_type] ?? ucfirst($task->task_type) }}</p>
                         </div>
 
                         <!-- Project -->

@@ -113,12 +113,12 @@
                                 <span>Due: {{ $project->due_date ? \Carbon\Carbon::parse($project->due_date)->format('M j') : 'No due date' }}</span>
                             </div>
                             <div class="flex items-center space-x-1">
-                                <span>{{ $project->taskLists->sum(function($list) { return $list->tasks->where('status', 'completed')->count(); }) }}/{{ $project->taskLists->sum(function($list) { return $list->tasks->count(); }) }} tasks completed</span>
+                                <span>{{ $project->taskLists->sum(function($list) { return $list->tasks->where('task_status', 'approved')->count(); }) }}/{{ $project->taskLists->sum(function($list) { return $list->tasks->count(); }) }} tasks completed</span>
                             </div>
                             <div class="flex items-center space-x-1">
                                 @php
                                     $totalTasks = $project->taskLists->sum(function($list) { return $list->tasks->count(); });
-                                    $completedTasks = $project->taskLists->sum(function($list) { return $list->tasks->where('status', 'completed')->count(); });
+                                    $completedTasks = $project->taskLists->sum(function($list) { return $list->tasks->where('task_status', 'approved')->count(); });
                                     $progress = $totalTasks > 0 ? round(($completedTasks / $totalTasks) * 100) : 0;
                                 @endphp
                                 <span>{{ $progress }}% progress</span>

@@ -110,7 +110,7 @@
                             @endif
                             <div class="flex items-center space-x-1">
                                 <i class="fas fa-calendar w-4 h-4"></i>
-                                <span>Due: {{ $project->due_date ? \Carbon\Carbon::parse($project->due_date)->format('M j') : 'No due date' }}</span>
+                                <span>Due: {{ $project->due_date ? \Carbon\Carbon::parse($project->due_date)->format('M j') : 'NA' }}</span>
                             </div>
                             <div class="flex items-center space-x-1">
                                 <span>{{ $project->taskLists->sum(function($list) { return $list->tasks->where('task_status', 'approved')->count(); }) }}/{{ $project->taskLists->sum(function($list) { return $list->tasks->count(); }) }} tasks completed</span>
@@ -212,8 +212,19 @@
             </div>
         </div>
         @endif
+        <!-- Task Filters Toggle Button -->
+        <div class="mb-6" x-data="{ showFilters: false }">
+            <button 
+                @click="showFilters = !showFilters" 
+                class="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+            >
+                <i class="fas fa-filter w-4 h-4"></i>
+                <span x-text="showFilters ? 'Hide Filters' : 'Show Filters'"></span>
+                <i class="fas fa-chevron-down w-3 h-3 transition-transform" :class="{ 'rotate-180': showFilters }"></i>
+            </button>
+
         <!-- Task Filters -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <div x-show="showFilters" x-cloak x-transition class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-4">
             <div class="flex flex-col lg:flex-row lg:items-end gap-4">
                 <div class="flex-1">
                     <label for="task_name_filter" class="block text-sm font-medium text-gray-700 mb-1">Task Name</label>
@@ -280,9 +291,6 @@
                         <option value="general">📝 General</option>
                         <option value="equipmentId">🔧 Equipment ID</option>
                         <option value="customerName">👤 Customer</option>
-                        <option value="feature">✨ Feature</option>
-                        <option value="bug">🐛 Bug</option>
-                        <option value="design">🎨 Design</option>
                     </select>
                 </div>
 
@@ -319,6 +327,7 @@
                 </div>
             </div>
             <p class="text-xs text-gray-500 mt-3">Filters apply across all task lists on this project view.</p>
+        </div>
         </div>
 
         

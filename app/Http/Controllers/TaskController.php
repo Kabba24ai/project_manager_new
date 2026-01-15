@@ -97,7 +97,9 @@ class TaskController extends Controller
             'tags' => 'nullable|array',
             'task_list_id' => 'nullable|exists:task_lists,id',
             'attachments' => 'nullable|array',
-            'attachments.*' => 'file|max:51200|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,webm,pdf',
+            'attachments.*' => 'file|max:102400|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,webm,pdf',
+            'uploaded_files' => 'nullable|array',
+            'uploaded_files.*' => 'string',
         ]);
 
         // Use task_list_id from request body if provided, otherwise use URL parameter
@@ -130,7 +132,7 @@ class TaskController extends Controller
             $storedName = (string) Str::uuid() . ($ext ? '.' . $ext : '');
             $storedPath = $file->storeAs("tasks/{$task->id}", $storedName, 'local');
 
-            Attachment::create([
+            $attachment = Attachment::create([
                 'attachable_type' => Task::class,
                 'attachable_id' => $task->id,
                 'filename' => $storedName,
@@ -140,7 +142,59 @@ class TaskController extends Controller
                 'size' => $file->getSize(),
                 'uploaded_by' => Auth::id(),
             ]);
+
+            // Generate thumbnail for images
+            if (in_array($attachment->mime_type, ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'])) {
+                app(AttachmentController::class)->generateImageThumbnail($attachment);
+            }
         }
+
+        // Process temp uploaded files
+        $uploadedFileIds = $request->input('uploaded_files', []);
+        $tempFiles = session('temp_uploads', []);
+        
+        foreach ($uploadedFileIds as $tempId) {
+            if (!isset($tempFiles[$tempId])) {
+                continue;
+            }
+
+            $tempFile = $tempFiles[$tempId];
+            $tempPath = $tempFile['path'];
+
+            if (!Storage::disk('local')->exists($tempPath)) {
+                continue;
+            }
+
+            // Generate new filename
+            $ext = pathinfo($tempFile['original_name'], PATHINFO_EXTENSION);
+            $storedName = (string) Str::uuid() . ($ext ? '.' . $ext : '');
+            $newPath = "tasks/{$task->id}/{$storedName}";
+
+            // Move from temp to permanent storage
+            Storage::disk('local')->move($tempPath, $newPath);
+
+            $attachment = Attachment::create([
+                'attachable_type' => Task::class,
+                'attachable_id' => $task->id,
+                'filename' => $storedName,
+                'original_filename' => $tempFile['original_name'],
+                'path' => $newPath,
+                'mime_type' => $tempFile['mime_type'],
+                'size' => $tempFile['size'],
+                'uploaded_by' => Auth::id(),
+            ]);
+
+            // Generate thumbnail for images
+            if (in_array($attachment->mime_type, ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'])) {
+                app(AttachmentController::class)->generateImageThumbnail($attachment);
+            }
+
+            // Remove from temp files array
+            unset($tempFiles[$tempId]);
+        }
+
+        // Update session
+        session(['temp_uploads' => $tempFiles]);
 
         $task->load('assignedUser');
 
@@ -256,7 +310,7 @@ class TaskController extends Controller
             'feedback' => 'nullable|string',
             'task_list_id' => 'nullable|exists:task_lists,id',
             'attachments' => 'nullable|array',
-            'attachments.*' => 'file|max:51200|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,webm,pdf',
+            'attachments.*' => 'file|max:102400|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,webm,pdf',
         ]);
 
         // Check if project requires approval and user is trying to change status to approved

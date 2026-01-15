@@ -262,11 +262,16 @@
                         <input
                             type="file"
                             name="attachments[]"
+                            id="file-input"
                             multiple
                             accept="image/*,video/*,.pdf"
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                            onchange="showFilePreview(this)"
                         >
                         <p class="mt-2 text-xs text-gray-500">Supported: images, videos, PDF • Max 50MB each</p>
+                        
+                        <!-- File Preview -->
+                        <div id="file-preview" class="mt-3 space-y-2"></div>
                     </div>
                 </div>
 
@@ -299,6 +304,52 @@ function taskForm() {
         // Empty Alpine.js component for potential future enhancements
     }
 }
+
+function showFilePreview(input) {
+    const previewDiv = document.getElementById('file-preview');
+    previewDiv.innerHTML = '';
+    
+    if (input.files && input.files.length > 0) {
+        Array.from(input.files).forEach((file, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'flex items-center justify-between p-2 bg-blue-50 border border-blue-200 rounded-lg text-sm';
+            
+            const fileIcon = file.type.startsWith('image/') ? '🖼️' : 
+                           file.type.startsWith('video/') ? '🎥' : 
+                           file.type === 'application/pdf' ? '📄' : '📎';
+            
+            fileItem.innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <span class="text-lg">${fileIcon}</span>
+                    <div>
+                        <div class="font-medium text-gray-900">${file.name}</div>
+                        <div class="text-xs text-gray-600">${(file.size / 1024).toFixed(1)} KB</div>
+                    </div>
+                </div>
+                <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Ready to upload</span>
+            `;
+            
+            previewDiv.appendChild(fileItem);
+        });
+    }
+}
+
+// Show loading indicator when form is submitted
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form[action*="tasks"]');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const fileInput = document.getElementById('file-input');
+            if (fileInput && fileInput.files.length > 0) {
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Uploading...</span>';
+                }
+            }
+        });
+    }
+});
 </script>
 @endpush
 @endsection

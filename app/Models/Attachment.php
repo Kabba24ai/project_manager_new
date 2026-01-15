@@ -17,6 +17,7 @@ class Attachment extends Model
         'filename',
         'original_filename',
         'path',
+        'thumbnail_path',
         'mime_type',
         'size',
         'uploaded_by',
@@ -34,5 +35,31 @@ class Attachment extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function isImage(): bool
+    {
+        return in_array($this->mime_type, [
+            'image/jpeg', 
+            'image/jpg', 
+            'image/png', 
+            'image/gif', 
+            'image/webp'
+        ]);
+    }
+
+    public function isVideo(): bool
+    {
+        return in_array($this->mime_type, [
+            'video/mp4', 
+            'video/quicktime', 
+            'video/x-msvideo', 
+            'video/webm'
+        ]);
+    }
+
+    public function isPdf(): bool
+    {
+        return $this->mime_type === 'application/pdf';
     }
 }

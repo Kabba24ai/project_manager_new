@@ -92,7 +92,20 @@
                 </div>
 
                 <!-- Attachments -->
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6" x-data="{ 
+                    previewUrl: null, 
+                    previewType: null, 
+                    previewName: null,
+                    closePreview() {
+                        // Pause and reset video if it's playing
+                        const videoElement = this.$refs.previewVideo;
+                        if (videoElement) {
+                            videoElement.pause();
+                            videoElement.currentTime = 0;
+                        }
+                        this.previewUrl = null;
+                    }
+                }">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-lg font-semibold text-gray-900">Attachments</h2>
                         @if($task->attachments->count() > 0)
@@ -101,24 +114,83 @@
                     </div>
 
                     @if($task->attachments->count() > 0)
-                        <div class="space-y-3">
+                        <!-- Grid Layout for Attachments -->
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                             @foreach($task->attachments as $attachment)
-                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                    <div class="min-w-0">
-                                        <div class="text-sm font-medium text-gray-900 truncate">
+                                <div class="group relative bg-gray-50 rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                                    <!-- Thumbnail/Preview Area -->
+                                    <div class="aspect-square bg-gray-100 flex items-center justify-center relative">
+                                        @if($attachment->isImage())
+                                            <!-- Image Thumbnail -->
+                                            <img 
+                                                src="{{ route('attachments.thumbnail', $attachment->id) }}" 
+                                                alt="{{ $attachment->original_filename }}"
+                                                class="w-full h-full object-cover cursor-pointer"
+                                                @click="previewUrl = '{{ route('attachments.preview', $attachment->id) }}'; previewType = 'image'; previewName = '{{ $attachment->original_filename }}'"
+                                            >
+                                            <div 
+                                                class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer"
+                                                @click="previewUrl = '{{ route('attachments.preview', $attachment->id) }}'; previewType = 'image'; previewName = '{{ $attachment->original_filename }}'"
+                                            >
+                                                <i class="fas fa-search-plus text-white text-2xl pointer-events-none"></i>
+                                            </div>
+                                        @elseif($attachment->isVideo())
+                                            <!-- Video Thumbnail -->
+                                            <div 
+                                                id="video-thumb-{{ $attachment->id }}"
+                                                class="relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800 cursor-pointer group-hover:from-gray-800 group-hover:to-gray-700 transition-all overflow-hidden"
+                                                @click="previewUrl = '{{ route('attachments.preview', $attachment->id) }}'; previewType = 'video'; previewName = '{{ $attachment->original_filename }}'"
+                                                data-video-url="{{ route('attachments.preview', $attachment->id) }}"
+                                            >
+                                                <canvas id="canvas-{{ $attachment->id }}" class="absolute inset-0 w-full h-full object-cover" style="display: none;"></canvas>
+                                                <img id="thumb-img-{{ $attachment->id }}" class="absolute inset-0 w-full h-full object-cover" style="display: none;">
+                                                <div class="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-40 z-10">
+                                                    <i class="fas fa-play-circle text-white text-5xl mb-2 group-hover:scale-110 transition-transform drop-shadow-lg"></i>
+                                                    <span class="text-white text-xs font-medium drop-shadow">Click to play</span>
+                                                </div>
+                                            </div>
+                                        @elseif($attachment->isPdf())
+                                            <!-- PDF Icon -->
+                                            <div class="flex flex-col items-center justify-center text-red-600">
+                                                <i class="fas fa-file-pdf text-4xl mb-2"></i>
+                                                <span class="text-xs">PDF</span>
+                                            </div>
+                                        @else
+                                            <!-- Generic File Icon -->
+                                            <div class="flex flex-col items-center justify-center text-gray-400">
+                                                <i class="fas fa-file text-4xl mb-2"></i>
+                                                <span class="text-xs">FILE</span>
+                                            </div>
+                                        @endif
+                                    </div>
+
+                                    <!-- File Info -->
+                                    <div class="p-2">
+                                        <div class="text-xs font-medium text-gray-900 truncate" title="{{ $attachment->original_filename }}">
                                             {{ $attachment->original_filename }}
                                         </div>
                                         <div class="text-xs text-gray-500">
-                                            {{ number_format(($attachment->size ?? 0) / 1024, 1) }} KB
-                                            @if($attachment->uploader)
-                                                • Uploaded by {{ $attachment->uploader->name }}
+                                            @php
+                                                $sizeInBytes = $attachment->size ?? 0;
+                                                $sizeInKB = $sizeInBytes / 1024;
+                                                $sizeInMB = $sizeInKB / 1024;
+                                            @endphp
+                                            @if($sizeInMB >= 1)
+                                                {{ number_format($sizeInMB, 2) }} MB
+                                            @else
+                                                {{ number_format($sizeInKB, 1) }} KB
                                             @endif
-                                            • {{ $attachment->created_at->diffForHumans() }}
                                         </div>
                                     </div>
-                                    <div class="flex items-center space-x-2 flex-shrink-0">
-                                        <a href="{{ route('attachments.download', $attachment->id) }}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                                            <i class="fas fa-download mr-2"></i>Download
+
+                                    <!-- Action Buttons -->
+                                    <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <a 
+                                            href="{{ route('attachments.download', $attachment->id) }}" 
+                                            class="px-2 py-1 bg-white rounded shadow-sm text-xs text-gray-700 hover:bg-gray-100"
+                                            title="Download"
+                                        >
+                                            <i class="fas fa-download"></i>
                                         </a>
                                     </div>
                                 </div>
@@ -127,6 +199,49 @@
                     @else
                         <p class="text-sm text-gray-500">No attachments.</p>
                     @endif
+
+                    <!-- Preview Modal -->
+                    <div 
+                        x-show="previewUrl" 
+                        x-cloak
+                        class="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+                        @click.self="closePreview()"
+                    >
+                        <div class="relative max-w-6xl w-full">
+                            <!-- Close Button -->
+                            <button 
+                                @click="closePreview()"
+                                class="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
+                            >
+                                <i class="fas fa-times text-2xl"></i>
+                            </button>
+
+                            <!-- File Name -->
+                            <div class="text-white text-center mb-4" x-text="previewName"></div>
+
+                            <!-- Preview Content -->
+                            <div class="bg-white rounded-lg overflow-hidden">
+                                <!-- Image Preview -->
+                                <template x-if="previewType === 'image'">
+                                    <img :src="previewUrl" alt="Preview" class="w-full h-auto max-h-[80vh] object-contain">
+                                </template>
+
+                                <!-- Video Preview -->
+                                <template x-if="previewType === 'video'">
+                                    <video 
+                                        x-ref="previewVideo"
+                                        :src="previewUrl" 
+                                        controls 
+                                        autoplay
+                                        playsinline
+                                        class="w-full h-auto max-h-[80vh] bg-black"
+                                    >
+                                        Your browser does not support the video tag.
+                                    </video>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Task Status Bar -->
@@ -491,6 +606,64 @@ function taskChangesManager() {
         }
     }
 }
+
+// Generate video thumbnails on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const videoContainers = document.querySelectorAll('[data-video-url]');
+    
+    videoContainers.forEach(container => {
+        const videoUrl = container.dataset.videoUrl;
+        const attachmentId = container.id.replace('video-thumb-', '');
+        const canvas = document.getElementById('canvas-' + attachmentId);
+        const thumbImg = document.getElementById('thumb-img-' + attachmentId);
+        
+        if (!videoUrl || !canvas || !thumbImg) return;
+        
+        // Create a temporary video element
+        const video = document.createElement('video');
+        video.crossOrigin = 'anonymous';
+        video.muted = true;
+        video.playsInline = true;
+        
+        video.addEventListener('loadeddata', function() {
+            // Seek to 1 second or 10% of video duration
+            const seekTime = Math.min(1, video.duration * 0.1);
+            video.currentTime = seekTime;
+        });
+        
+        video.addEventListener('seeked', function() {
+            try {
+                // Set canvas size to match video
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                // Draw video frame to canvas
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // Convert canvas to image
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                thumbImg.src = dataUrl;
+                thumbImg.style.display = 'block';
+                
+                // Clean up
+                video.remove();
+            } catch (error) {
+                console.error('Error generating video thumbnail:', error);
+                // Fallback: keep the play icon visible
+            }
+        });
+        
+        video.addEventListener('error', function(e) {
+            console.error('Error loading video for thumbnail:', e);
+            // Fallback: keep the play icon visible
+        });
+        
+        // Start loading the video
+        video.src = videoUrl;
+        video.load();
+    });
+});
 </script>
 @endpush
 @endsection

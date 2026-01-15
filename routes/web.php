@@ -54,7 +54,10 @@ Route::middleware('auth')->group(function () {
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
 
     // Attachments
+    Route::post('/api/upload-temp-file', [AttachmentController::class, 'uploadTemp'])->name('attachments.upload-temp');
     Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download'])->name('attachments.download');
+    Route::get('/attachments/{attachment}/thumbnail', [AttachmentController::class, 'thumbnail'])->name('attachments.thumbnail');
+    Route::get('/attachments/{attachment}/preview', [AttachmentController::class, 'preview'])->name('attachments.preview');
 
     // Comments
     Route::get('/tasks/{task}/comments', [CommentController::class, 'index'])->name('comments.index');

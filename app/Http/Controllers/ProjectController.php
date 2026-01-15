@@ -158,7 +158,7 @@ class ProjectController extends Controller
             'tags' => 'nullable|array',
             'settings' => 'nullable|array',
             'attachments' => 'nullable|array',
-            'attachments.*' => 'file|max:51200', // 50MB max
+            'attachments.*' => 'file|max:102400', // 100MB max
         ]);
 
         // Filter out empty objectives and deliverables
@@ -301,7 +301,7 @@ class ProjectController extends Controller
             'tags' => 'nullable|array',
             'settings' => 'nullable|array',
             'attachments' => 'nullable|array',
-            'attachments.*' => 'file|max:51200', // 50MB max
+            'attachments.*' => 'file|max:102400', // 100MB max
         ]);
 
         // Filter out empty objectives and deliverables

@@ -48,7 +48,7 @@
         </div>
         @else
         <!-- Task Form -->
-        <form action="{{ route('tasks.store', $taskListId ?? $project->taskLists->first()->id) }}" method="POST" enctype="multipart/form-data">
+        <form x-ref="taskForm" action="{{ route('tasks.store', $taskListId ?? $project->taskLists->first()->id) }}" method="POST" enctype="multipart/form-data">
             @csrf
             
             <div class="space-y-8">
@@ -501,7 +501,7 @@
                         
                         <p class="text-sm text-gray-500">
                             <strong>Supported formats:</strong> JPG, PNG, GIF, WebP, MP4, MOV, AVI, WebM, PDF<br />
-                            <strong>Maximum size:</strong> 50MB per file • <strong>Multiple files:</strong> Supported
+                            <strong>Maximum size:</strong> 100MB per file • <strong>Multiple files:</strong> Supported
                         </p>
 
                         <!-- File List -->
@@ -512,27 +512,46 @@
                                 </h3>
                                 <div class="space-y-2">
                                     <template x-for="(file, index) in attachments" :key="index">
-                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                                            <div class="flex items-center space-x-3">
-                                                <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg" :class="getFileTypeColor(file)">
-                                                    <span x-html="getFileIcon(file)"></span>
-                                                </div>
-                                                <div class="flex-1 min-w-0">
-                                                    <p class="text-sm font-medium text-gray-900 truncate" x-text="file.name"></p>
-                                                    <div class="flex items-center space-x-3 text-xs text-gray-500">
-                                                        <span x-text="(file.size / 1024 / 1024).toFixed(2) + ' MB'"></span>
-                                                        <span x-text="getFileType(file)"></span>
+                                        <div class="p-3 bg-gray-50 rounded-lg border" :class="file.error ? 'border-red-300 bg-red-50' : 'border-gray-200'">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <div class="flex items-center space-x-3 flex-1 min-w-0">
+                                                    <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0" :class="getFileTypeColor(file)">
+                                                        <span x-html="getFileIcon(file)"></span>
+                                                    </div>
+                                                    <div class="flex-1 min-w-0">
+                                                        <p class="text-sm font-medium text-gray-900 truncate" x-text="file.name"></p>
+                                                        <div class="flex items-center space-x-3 text-xs text-gray-500">
+                                                            <span x-text="(file.size / 1024 / 1024).toFixed(2) + ' MB'"></span>
+                                                            <span x-text="getFileType(file)"></span>
+                                                            <span x-show="file.uploaded" class="text-green-600 font-medium">✓ Uploaded</span>
+                                                            <span x-show="file.error" class="text-red-600 font-medium">✗ Failed</span>
+                                                        </div>
                                                     </div>
                                                 </div>
+                                                <button
+                                                    type="button"
+                                                    @click="removeAttachment(index)"
+                                                    class="p-1 text-gray-400 hover:text-red-500 transition-colors rounded flex-shrink-0"
+                                                    title="Remove file"
+                                                    :disabled="file.uploading"
+                                                >
+                                                    <i class="fas fa-times w-4 h-4"></i>
+                                                </button>
                                             </div>
-                                            <button
-                                                type="button"
-                                                @click="removeAttachment(index)"
-                                                class="p-1 text-gray-400 hover:text-red-500 transition-colors rounded"
-                                                title="Remove file"
-                                            >
-                                                <i class="fas fa-times w-4 h-4"></i>
-                                            </button>
+                                            
+                                            <!-- Progress Bar -->
+                                            <div x-show="file.uploading" class="mt-2">
+                                                <div class="flex items-center justify-between mb-1">
+                                                    <span class="text-xs text-gray-600">Uploading...</span>
+                                                    <span class="text-xs font-semibold text-blue-600" x-text="file.progress + '%'"></span>
+                                                </div>
+                                                <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                                    <div 
+                                                        class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300"
+                                                        :style="'width: ' + file.progress + '%'"
+                                                    ></div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </template>
                                 </div>
@@ -542,20 +561,44 @@
                 </div>
 
                 <!-- Form Actions -->
+                <!-- Form Submission Progress Bar -->
+                <div x-show="uploading" x-cloak class="mb-4">
+                    <div class="bg-white rounded-lg border border-green-200 p-4 shadow-md">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center space-x-2">
+                                <i class="fas fa-circle-notch fa-spin text-green-600"></i>
+                                <span class="text-sm font-medium text-gray-700" x-text="uploadStatus"></span>
+                            </div>
+                            <span class="text-sm font-semibold text-green-600" x-text="uploadProgress + '%'"></span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                            <div 
+                                class="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-300 ease-out"
+                                :style="'width: ' + uploadProgress + '%'"
+                            ></div>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-600">
+                            Please wait while we create your task...
+                        </div>
+                    </div>
+                </div>
+
                 <div class="flex items-center justify-end space-x-4">
                     <a
                         href="{{ route('projects.show', $project->id) }}"
                         class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                        :class="{ 'pointer-events-none opacity-50': uploading }"
                     >
                         Cancel
                     </a>
                     <button
                         type="submit"
-                        x-bind:disabled="!canShowStep3()"
+                        x-bind:disabled="!canShowStep3() || uploading"
+                        @click.prevent="submitWithProgress"
                         class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <i class="fas fa-save"></i>
-                        <span>Create Task</span>
+                        <i class="fas" :class="uploading ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+                        <span x-text="uploading ? 'Uploading...' : 'Create Task'"></span>
                     </button>
                 </div>
             </div>
@@ -600,6 +643,12 @@ function taskForm() {
         customerId: '',
         showCustomerDropdown: false,
         loadingCustomers: false,
+        
+        // Upload Progress
+        uploading: false,
+        uploadProgress: 0,
+        uploadStatus: 'Preparing upload...',
+        uploadedFiles: [], // Store uploaded file references
         
         init() {
             // Load templates on initialization
@@ -758,34 +807,99 @@ function taskForm() {
             };
         },
         
-        handleFileUpload(event) {
+        async handleFileUpload(event) {
             const files = Array.from(event.target.files);
-            const maxSize = 50 * 1024 * 1024; // 50MB
+            const maxSize = 100 * 1024 * 1024; // 100MB
             
-            files.forEach(file => {
-                if (file.size <= maxSize) {
-                    this.attachments.push(file);
-                } else {
-                    alert(`File ${file.name} is too large. Maximum size is 50MB.`);
+            for (const file of files) {
+                if (file.size > maxSize) {
+                    alert(`File ${file.name} is too large. Maximum size is 100MB.`);
+                    continue;
+                }
+                
+                // Add file to attachments with uploading status
+                const fileObj = {
+                    file: file, // Keep original file for fallback
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    uploading: true,
+                    progress: 0,
+                    uploaded: false,
+                    error: false,
+                    tempId: null
+                };
+                this.attachments.push(fileObj);
+                const fileIndex = this.attachments.length - 1;
+                
+                // Upload file immediately
+                this.uploadFile(file, fileIndex);
+            }
+            
+            // Reset file input
+            event.target.value = '';
+        },
+        
+        uploadFile(file, fileIndex) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+            
+            const xhr = new XMLHttpRequest();
+            
+            // Track upload progress
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    this.attachments[fileIndex].progress = percentComplete;
                 }
             });
-
-            // Sync selected files back to the real <input type="file"> for form submit
-            const dt = new DataTransfer();
-            this.attachments.forEach(f => dt.items.add(f));
-            if (this.$refs.fileInput) {
-                this.$refs.fileInput.files = dt.files;
-            }
+            
+            // Handle completion
+            xhr.addEventListener('load', () => {
+                if (xhr.status === 200) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        this.attachments[fileIndex].uploading = false;
+                        this.attachments[fileIndex].uploaded = true;
+                        this.attachments[fileIndex].tempId = response.tempId;
+                        this.uploadedFiles.push(response.tempId);
+                    } catch (error) {
+                        console.error('Upload response error:', error);
+                        this.attachments[fileIndex].uploading = false;
+                        this.attachments[fileIndex].error = true;
+                    }
+                } else {
+                    console.error('Upload failed:', xhr.status);
+                    this.attachments[fileIndex].uploading = false;
+                    this.attachments[fileIndex].error = true;
+                }
+            });
+            
+            // Handle errors
+            xhr.addEventListener('error', () => {
+                console.error('Upload error');
+                this.attachments[fileIndex].uploading = false;
+                this.attachments[fileIndex].error = true;
+            });
+            
+            // Send request
+            xhr.open('POST', '/api/upload-temp-file', true);
+            xhr.send(formData);
         },
         
         removeAttachment(index) {
-            this.attachments.splice(index, 1);
-
-            const dt = new DataTransfer();
-            this.attachments.forEach(f => dt.items.add(f));
-            if (this.$refs.fileInput) {
-                this.$refs.fileInput.files = dt.files;
+            const file = this.attachments[index];
+            
+            // Remove from uploadedFiles array if it was uploaded
+            if (file.tempId) {
+                const uploadedIndex = this.uploadedFiles.indexOf(file.tempId);
+                if (uploadedIndex > -1) {
+                    this.uploadedFiles.splice(uploadedIndex, 1);
+                }
             }
+            
+            this.attachments.splice(index, 1);
         },
         
         getFileTypeColor(file) {
@@ -807,6 +921,95 @@ function taskForm() {
             if (file.type.startsWith('video/')) return 'Video';
             if (file.type === 'application/pdf') return 'PDF';
             return 'File';
+        },
+        
+        submitWithProgress() {
+            // Check if any files are still uploading
+            const stillUploading = this.attachments.some(file => file.uploading);
+            if (stillUploading) {
+                alert('Please wait for all files to finish uploading.');
+                return;
+            }
+            
+            // Get form and create FormData
+            const form = this.$refs.taskForm;
+            const formData = new FormData(form);
+            
+            // Add uploaded file IDs to form data
+            this.uploadedFiles.forEach((tempId, index) => {
+                formData.append('uploaded_files[]', tempId);
+            });
+            
+            // Show progress bar
+            this.uploading = true;
+            this.uploadProgress = 0;
+            this.uploadStatus = 'Preparing to create task...';
+            
+            // Simulate initial progress for better UX
+            setTimeout(() => {
+                if (this.uploadProgress < 10) {
+                    this.uploadProgress = 10;
+                }
+            }, 100);
+            
+            // Create XMLHttpRequest for progress tracking
+            const xhr = new XMLHttpRequest();
+            
+            // Track upload progress
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    this.uploadProgress = percentComplete;
+                    
+                    if (percentComplete < 30) {
+                        this.uploadStatus = 'Submitting task data...';
+                    } else if (percentComplete < 70) {
+                        this.uploadStatus = 'Processing attachments...';
+                    } else if (percentComplete < 100) {
+                        this.uploadStatus = 'Finalizing task creation...';
+                    } else {
+                        this.uploadStatus = 'Processing... Almost done!';
+                    }
+                }
+            });
+            
+            // Handle completion
+            xhr.addEventListener('load', () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    this.uploadProgress = 100;
+                    this.uploadStatus = 'Task created successfully! Redirecting...';
+                    // Parse response to get redirect URL
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.redirect) {
+                            window.location.href = response.redirect;
+                        } else {
+                            // Fallback: redirect to projects page
+                            window.location.href = '{{ route('projects.show', $project->id) }}';
+                        }
+                    } catch (e) {
+                        // If not JSON, try to redirect to projects page
+                        window.location.href = '{{ route('projects.show', $project->id) }}';
+                    }
+                } else {
+                    this.uploadStatus = 'Failed to create task. Please try again.';
+                    this.uploading = false;
+                    alert('Failed to create task: ' + xhr.statusText);
+                }
+            });
+            
+            // Handle errors
+            xhr.addEventListener('error', () => {
+                this.uploadStatus = 'Error creating task. Please check your connection.';
+                this.uploading = false;
+                alert('Error creating task. Please check your connection and try again.');
+            });
+            
+            // Send request
+            xhr.open('POST', form.action);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('meta[name="csrf-token"]').content);
+            xhr.send(formData);
         }
     }
 }

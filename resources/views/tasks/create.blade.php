@@ -317,19 +317,29 @@
                         <div>
                             <div class="flex items-center justify-between mb-2">
                                 <label for="description" class="block text-sm font-medium text-gray-700">Description *</label>
-                                <select
-                                    x-model="selectedTemplateId"
-                                    @change="handleTemplateSelect()"
-                                    :disabled="loadingTemplates || availableTemplates.length === 0"
-                                    class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <option value="">
-                                        <span x-text="loadingTemplates ? 'Loading...' : (availableTemplates.length === 0 ? 'No templates available' : 'Choose Default Description')"></span>
-                                    </option>
-                                    <template x-for="template in availableTemplates.sort((a, b) => a.name.localeCompare(b.name))" :key="template.id">
-                                        <option :value="template.id" x-text="template.name"></option>
-                                    </template>
-                                </select>
+                                <div class="flex items-center space-x-2">
+                                    <select
+                                        x-model="selectedTemplateId"
+                                        @change="handleTemplateSelect()"
+                                        :disabled="loadingTemplates || availableTemplates.length === 0"
+                                        class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <option value="">
+                                            <span x-text="loadingTemplates ? 'Loading...' : (availableTemplates.length === 0 ? 'No templates available' : 'Choose Default Description')"></span>
+                                        </option>
+                                        <template x-for="template in availableTemplates.sort((a, b) => a.name.localeCompare(b.name))" :key="template.id">
+                                            <option :value="template.id" x-text="template.name"></option>
+                                        </template>
+                                    </select>
+                                    <button
+                                        type="button"
+                                        @click="handleSaveAsTemplate()"
+                                        class="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors flex items-center space-x-1"
+                                    >
+                                        <i class="fas fa-plus w-3 h-3"></i>
+                                        <span>Save as Template</span>
+                                    </button>
+                                </div>
                             </div>
                             <textarea 
                                 id="description" 
@@ -560,6 +570,222 @@
                     </div>
                 </div>
 
+                <!-- Step 5: Service Call - Only for Equipment ID tasks -->
+                <div x-show="taskType === 'equipmentId' && canShowStep3()" x-cloak class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center space-x-2 mb-6">
+                        <div class="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">5</div>
+                        <h2 class="text-lg font-semibold text-gray-900">Service Call</h2>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-3">
+                                Service Type
+                            </label>
+                            <div class="flex items-center space-x-6">
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="service_call_type"
+                                        value="none"
+                                        x-model="serviceCallType"
+                                        @change="clearServiceCallData()"
+                                        class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                    />
+                                    <span class="text-sm text-gray-700">None</span>
+                                </label>
+
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="service_call_type"
+                                        value="customer_damage"
+                                        x-model="serviceCallType"
+                                        class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                    />
+                                    <span class="text-sm text-gray-700">Customer Related Damage</span>
+                                </label>
+
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="service_call_type"
+                                        value="field_service"
+                                        x-model="serviceCallType"
+                                        class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                    />
+                                    <span class="text-sm text-gray-700">Customer Related - Field Service Required</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div x-show="serviceCallType !== 'none'" class="space-y-4 pt-4 border-t">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Customer (Optional Filter)
+                                        <span x-show="selectedServiceCallCustomer" class="ml-2 text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                            Filter Active
+                                        </span>
+                                    </label>
+                                    <div class="relative" @click.away="showServiceCallCustomerDropdown = false">
+                                        <div class="relative">
+                                            <i class="fas fa-user absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                            <input
+                                                type="text"
+                                                x-model="serviceCallCustomerSearch"
+                                                @input.debounce.300ms="handleServiceCallCustomerSearch()"
+                                                @focus="showServiceCallCustomerDropdown = true; if (serviceCallCustomerSearch.length >= 2) handleServiceCallCustomerSearch()"
+                                                class="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                                :class="{ 'border-blue-400 bg-blue-50': selectedServiceCallCustomer }"
+                                                placeholder="Filter by customer (name, email)..."
+                                            />
+                                            <button
+                                                type="button"
+                                                x-show="serviceCallCustomerSearch.length > 0"
+                                                @click="serviceCallCustomerSearch = ''; selectedServiceCallCustomer = null; serviceCallCustomers = []; showServiceCallCustomerDropdown = false; if (serviceCallOrders.length > 0) showServiceCallOrderDropdown = true;"
+                                                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                            >
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+
+                                        <div x-show="showServiceCallCustomerDropdown || loadingServiceCallCustomers" 
+                                             x-cloak
+                                             class="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                            <!-- Loading state -->
+                                            <div x-show="loadingServiceCallCustomers" class="px-4 py-3 text-center text-gray-500">
+                                                <i class="fas fa-spinner fa-spin mr-2"></i>
+                                                Searching customers...
+                                            </div>
+                                            
+                                            <!-- No results state -->
+                                            <div x-show="!loadingServiceCallCustomers && serviceCallCustomerSearch.length >= 2 && serviceCallCustomers.length === 0" class="px-4 py-3 text-center text-gray-500">
+                                                No customers found
+                                            </div>
+                                            
+                                            <!-- Results -->
+                                            <template x-for="(customer, index) in serviceCallCustomers" :key="'customer-' + customer.id + '-' + index">
+                                                <button
+                                                    type="button"
+                                                    @click="handleServiceCallCustomerSelect(customer)"
+                                                    class="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-0"
+                                                >
+                                                    <div class="font-medium text-gray-900" x-text="customer.firstName + ' ' + customer.lastName"></div>
+                                                    <div class="text-sm text-gray-500">
+                                                        <span x-text="customer.email"></span>
+                                                        <span x-show="customer.company" class="ml-2">• <span x-text="customer.company"></span></span>
+                                                    </div>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Order ID *
+                                    </label>
+                                    <div class="relative" @click.away="showServiceCallOrderDropdown = false">
+                                        <div class="relative">
+                                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                            <input
+                                                type="text"
+                                                x-model="serviceCallOrderSearch"
+                                                @input.debounce.300ms="handleServiceCallOrderSearch()"
+                                                @focus="showServiceCallOrderDropdown = true; if (serviceCallOrderSearch.length >= 2) handleServiceCallOrderSearch()"
+                                                class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                                :placeholder="loadingServiceCallOrders ? 'Loading orders...' : 'Search Order ID...'"
+                                            />
+                                        </div>
+
+                                        <div x-show="showServiceCallOrderDropdown || loadingServiceCallOrders" 
+                                             x-cloak
+                                             class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                            <!-- Loading state -->
+                                            <div x-show="loadingServiceCallOrders" class="px-4 py-3 text-center text-gray-500">
+                                                <i class="fas fa-spinner fa-spin mr-2"></i>
+                                                Searching orders...
+                                            </div>
+                                            
+                                            <!-- No results state -->
+                                            <div x-show="!loadingServiceCallOrders && serviceCallOrderSearch.length >= 2 && getFilteredOrders().length === 0" class="px-4 py-3 text-center text-gray-500">
+                                                No orders found
+                                            </div>
+                                            
+                                            <!-- Results -->
+                                            <template x-for="order in getFilteredOrders()" :key="order.id">
+                                                <button
+                                                    type="button"
+                                                    @click="handleServiceCallOrderSelect(order)"
+                                                    class="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                                                >
+                                                    <div class="font-medium text-gray-900" x-text="order.orderNumber"></div>
+                                                    <div class="text-sm text-gray-500">
+                                                        <span x-text="order.customer?.name"></span> • <span x-text="order.product"></span>
+                                                    </div>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="service_call_order_id" x-model="serviceCallOrderId">
+                                </div>
+                            </div>
+
+                            <div x-show="selectedServiceCallOrder" class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <div class="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <p class="font-medium text-gray-700">Order ID:</p>
+                                        <p class="text-gray-900" x-text="selectedServiceCallOrder?.orderNumber"></p>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-700">Email:</p>
+                                        <p class="text-blue-600" x-text="selectedServiceCallOrder?.customer?.email || 'N/A'"></p>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-700">Customer Name:</p>
+                                        <p class="text-gray-900" x-text="selectedServiceCallOrder?.customer?.name"></p>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-700">Phone:</p>
+                                        <p class="text-gray-900" x-text="selectedServiceCallOrder?.customer?.phone || 'N/A'"></p>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-700">Company:</p>
+                                        <p class="text-gray-900" x-text="selectedServiceCallOrder?.customer?.company || 'N/A'"></p>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-700">Billing Address:</p>
+                                        <p class="text-gray-900" x-text="selectedServiceCallOrder?.billingAddress || 'N/A'"></p>
+                                        <template x-if="selectedServiceCallOrder?.billingAddress && selectedServiceCallOrder?.billingAddress !== 'N/A'">
+                                            <a :href="'https://maps.google.com/?q=' + encodeURIComponent(selectedServiceCallOrder?.billingAddress)"
+                                               target="_blank" 
+                                               class="text-blue-600 text-xs hover:underline inline-block mt-1">
+                                                See on maps
+                                            </a>
+                                        </template>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-700">Product:</p>
+                                        <p class="text-gray-900" x-text="selectedServiceCallOrder?.product"></p>
+                                    </div>
+                                    <div >
+                                        <p class="font-medium text-gray-700">Shipping Address:</p>
+                                        <p class="text-gray-900" x-text="selectedServiceCallOrder?.shippingAddress || 'N/A'"></p>
+                                        <template x-if="selectedServiceCallOrder?.shippingAddress && selectedServiceCallOrder?.shippingAddress !== 'N/A'">
+                                            <a :href="'https://maps.google.com/?q=' + encodeURIComponent(selectedServiceCallOrder?.shippingAddress)"
+                                               target="_blank" 
+                                               class="text-blue-600 text-xs hover:underline inline-block mt-1">
+                                                See on maps
+                                            </a>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Form Actions -->
                 <!-- Form Submission Progress Bar -->
                 <div x-show="uploading" x-cloak class="mb-4">
@@ -605,6 +831,116 @@
         </form>
         @endif
     </div>
+
+    <!-- Save Template Modal -->
+    <div x-show="showSaveTemplateModal" 
+         x-cloak
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+         @click.self="showSaveTemplateModal = false">
+        <div class="bg-white rounded-lg max-w-md w-full p-6">
+            <div class="flex justify-between items-start mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">Save as Default Description</h3>
+                <button
+                    @click="showSaveTemplateModal = false"
+                    class="text-gray-400 hover:text-gray-600"
+                >
+                    <i class="fas fa-times w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label for="templateName" class="block text-sm font-medium text-gray-700 mb-2">
+                        Template Name *
+                    </label>
+                    <input
+                        type="text"
+                        id="templateName"
+                        x-model="templateSaveData.name"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        placeholder="e.g., 'Equipment Maintenance', 'Customer Follow-up'"
+                    />
+                </div>
+
+                <div>
+                    <label class="flex items-center space-x-2">
+                        <input
+                            type="checkbox"
+                            x-model="templateSaveData.is_universal"
+                            @change="if (templateSaveData.is_universal) templateSaveData.task_types = []"
+                            class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span class="text-sm font-medium text-gray-700">
+                            Universal Template (appears for all task types)
+                        </span>
+                    </label>
+                </div>
+
+                <div x-show="!templateSaveData.is_universal">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Apply to Task Types *
+                    </label>
+                    <div class="space-y-2">
+                        @if($generalEnabled)
+                        <label class="flex items-center space-x-2">
+                            <input
+                                type="checkbox"
+                                value="general"
+                                x-model="templateSaveData.task_types"
+                                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <span class="text-sm text-gray-700">General</span>
+                        </label>
+                        @endif
+                        @if($equipmentEnabled)
+                        <label class="flex items-center space-x-2">
+                            <input
+                                type="checkbox"
+                                value="equipmentId"
+                                x-model="templateSaveData.task_types"
+                                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <span class="text-sm text-gray-700">Equipment ID</span>
+                        </label>
+                        @endif
+                        @if($customerEnabled)
+                        <label class="flex items-center space-x-2">
+                            <input
+                                type="checkbox"
+                                value="customerName"
+                                x-model="templateSaveData.task_types"
+                                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <span class="text-sm text-gray-700">Customer</span>
+                        </label>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    <p class="text-xs font-medium text-gray-700 mb-1">Preview:</p>
+                    <p class="text-sm text-gray-600" x-text="description || 'No description entered yet'"></p>
+                </div>
+
+                <div class="flex items-center justify-end space-x-3 pt-4 border-t">
+                    <button
+                        @click="showSaveTemplateModal = false"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        @click="saveTemplate()"
+                        :disabled="savingTemplate"
+                        class="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <i class="fas" :class="savingTemplate ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+                        <span x-text="savingTemplate ? 'Saving...' : 'Save Template'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -628,6 +964,13 @@ function taskForm() {
         availableTemplates: [],
         loadingTemplates: false,
         selectedTemplateId: '',
+        showSaveTemplateModal: false,
+        savingTemplate: false,
+        templateSaveData: {
+            name: '',
+            is_universal: false,
+            task_types: []
+        },
         
         // Equipment
         equipmentCategories: @json($equipmentCategories ?? []),
@@ -649,6 +992,20 @@ function taskForm() {
         uploadProgress: 0,
         uploadStatus: 'Preparing upload...',
         uploadedFiles: [], // Store uploaded file references
+        
+        // Service Call
+        serviceCallType: 'none',
+        serviceCallOrderSearch: '',
+        serviceCallCustomerSearch: '',
+        serviceCallCustomers: [],
+        selectedServiceCallCustomer: null,
+        loadingServiceCallCustomers: false,
+        showServiceCallCustomerDropdown: false,
+        serviceCallOrders: [],
+        selectedServiceCallOrder: null,
+        loadingServiceCallOrders: false,
+        showServiceCallOrderDropdown: false,
+        serviceCallOrderId: '',
         
         init() {
             // Load templates on initialization
@@ -765,6 +1122,79 @@ function taskForm() {
             const template = this.availableTemplates.find(t => t.id.toString() === this.selectedTemplateId);
             if (template) {
                 this.description = template.template_text;
+            }
+        },
+        
+        handleSaveAsTemplate() {
+            if (!this.description || !this.description.trim()) {
+                alert('Please enter a description first');
+                return;
+            }
+            
+            // Reset template save data
+            this.templateSaveData = {
+                name: '',
+                is_universal: false,
+                task_types: this.taskType ? [this.taskType] : []
+            };
+            
+            this.showSaveTemplateModal = true;
+        },
+        
+        async saveTemplate() {
+            if (!this.templateSaveData.name || !this.templateSaveData.name.trim()) {
+                alert('Please enter a template name');
+                return;
+            }
+            
+            if (!this.templateSaveData.is_universal && this.templateSaveData.task_types.length === 0) {
+                alert('Please select at least one task type or mark as universal');
+                return;
+            }
+            
+            this.savingTemplate = true;
+            
+            try {
+                const response = await fetch('/api/task-templates', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: this.templateSaveData.name,
+                        template_text: this.description,
+                        is_universal: this.templateSaveData.is_universal,
+                        task_types: this.templateSaveData.task_types
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to save template');
+                }
+                
+                const data = await response.json();
+                
+                // Reload templates
+                await this.loadTemplates();
+                
+                // Close modal
+                this.showSaveTemplateModal = false;
+                
+                // Reset template save data
+                this.templateSaveData = {
+                    name: '',
+                    is_universal: false,
+                    task_types: []
+                };
+                
+                alert('Template saved successfully!');
+            } catch (error) {
+                console.error('Failed to save template:', error);
+                alert('Failed to save template. Please try again.');
+            } finally {
+                this.savingTemplate = false;
             }
         },
         
@@ -921,6 +1351,140 @@ function taskForm() {
             if (file.type.startsWith('video/')) return 'Video';
             if (file.type === 'application/pdf') return 'PDF';
             return 'File';
+        },
+        
+        async handleServiceCallCustomerSearch() {
+            const searchTerm = this.serviceCallCustomerSearch.trim();
+            
+            if (!searchTerm || searchTerm.length < 2) {
+                this.serviceCallCustomers = [];
+                this.selectedServiceCallCustomer = null; // Clear selected customer
+                this.showServiceCallCustomerDropdown = false;
+                
+                // Re-trigger order dropdown if there are orders
+                if (this.serviceCallOrders.length > 0) {
+                    this.showServiceCallOrderDropdown = true;
+                }
+                return;
+            }
+            
+            this.loadingServiceCallCustomers = true;
+            try {
+                const response = await fetch(`/api/customers/search?q=${encodeURIComponent(searchTerm)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                this.serviceCallCustomers = data.customers || [];
+                this.showServiceCallCustomerDropdown = this.serviceCallCustomers.length > 0;
+            } catch (error) {
+                console.error('Failed to search customers:', error);
+                this.serviceCallCustomers = [];
+                this.showServiceCallCustomerDropdown = false;
+            } finally {
+                this.loadingServiceCallCustomers = false;
+            }
+        },
+        
+        handleServiceCallCustomerSelect(customer) {
+            this.selectedServiceCallCustomer = customer;
+            this.serviceCallCustomerSearch = customer.firstName + ' ' + customer.lastName;
+            this.showServiceCallCustomerDropdown = false;
+            
+            // Trigger order search to filter by customer
+            if (this.serviceCallOrders.length > 0) {
+                this.showServiceCallOrderDropdown = true;
+            }
+        },
+        
+        async handleServiceCallOrderSearch() {
+            const searchTerm = this.serviceCallOrderSearch.trim();
+            
+            console.log('🔍 Order search triggered. Term:', searchTerm, 'Length:', searchTerm.length);
+            
+            if (!searchTerm || searchTerm.length < 2) {
+                console.log('❌ Search term too short');
+                this.serviceCallOrders = [];
+                this.selectedServiceCallOrder = null;
+                this.serviceCallOrderId = '';
+                this.showServiceCallOrderDropdown = false;
+                return;
+            }
+            
+            this.loadingServiceCallOrders = true;
+            try {
+                const url = `/api/orders/search?q=${encodeURIComponent(searchTerm)}`;
+                console.log('📡 Fetching from:', url);
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('✅ Response received:', data);
+                console.log('📦 Orders count:', data.orders ? data.orders.length : 0);
+                
+                this.serviceCallOrders = data.orders || [];
+                this.showServiceCallOrderDropdown = this.serviceCallOrders.length > 0;
+                console.log('🎯 Dropdown visible:', this.showServiceCallOrderDropdown);
+            } catch (error) {
+                console.error('❌ Failed to search orders:', error);
+                this.serviceCallOrders = [];
+                this.showServiceCallOrderDropdown = false;
+            } finally {
+                this.loadingServiceCallOrders = false;
+            }
+        },
+        
+        getFilteredOrders() {
+            if (!this.selectedServiceCallCustomer) {
+                return this.serviceCallOrders;
+            }
+            
+            const customerEmail = this.selectedServiceCallCustomer.email.toLowerCase();
+            const customerFirstName = (this.selectedServiceCallCustomer.firstName || '').toLowerCase();
+            const customerLastName = (this.selectedServiceCallCustomer.lastName || '').toLowerCase();
+            
+            const filtered = this.serviceCallOrders.filter(order => {
+                const customer = order.customer;
+                if (!customer) return false;
+                
+                const orderEmail = (customer.email || '').toLowerCase();
+                const orderFirstName = (customer.firstName || '').toLowerCase();
+                const orderLastName = (customer.lastName || '').toLowerCase();
+                const orderName = (customer.name || '').toLowerCase();
+                const fullCustomerName = (customerFirstName + ' ' + customerLastName).trim().toLowerCase();
+                
+                // Match by email or name combination
+                return orderEmail === customerEmail || 
+                       (orderFirstName === customerFirstName && orderLastName === customerLastName) ||
+                       orderName === fullCustomerName;
+            });
+            
+            return filtered;
+        },
+        
+        handleServiceCallOrderSelect(order) {
+            this.selectedServiceCallOrder = order;
+            this.serviceCallOrderId = order.orderNumber;
+            this.serviceCallOrderSearch = order.orderNumber;
+            this.showServiceCallOrderDropdown = false;
+        },
+        
+        clearServiceCallData() {
+            this.serviceCallOrderSearch = '';
+            this.serviceCallCustomerSearch = '';
+            this.serviceCallCustomers = [];
+            this.selectedServiceCallCustomer = null;
+            this.showServiceCallCustomerDropdown = false;
+            this.serviceCallOrders = [];
+            this.selectedServiceCallOrder = null;
+            this.serviceCallOrderId = '';
+            this.showServiceCallOrderDropdown = false;
         },
         
         submitWithProgress() {

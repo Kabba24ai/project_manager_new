@@ -283,7 +283,7 @@
                 </div>
 
                 <!-- Comments Section -->
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
                     <div class="flex items-center justify-between mb-6">
                         <h2 class="text-lg font-semibold text-gray-900">
                             Activity & Comments ({{ $task->comments->count() }})
@@ -341,17 +341,17 @@
 
                     <!-- Add Comment Form -->
                     <div class="border-t border-gray-200 pt-6">
-                        <div class="flex space-x-4">
-                            <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                                <span class="text-sm font-medium text-white">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
-                            </div>
-                            <div class="flex-1">
-                                <textarea
+                            <div class="flex space-x-4">
+                                <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <span class="text-sm font-medium text-white">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
+                                </div>
+                                <div class="flex-1">
+                                    <textarea
                                     x-model="newComment"
-                                    placeholder="Add a comment..."
-                                    class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                                    rows="3"
-                                ></textarea>
+                                        placeholder="Add a comment..."
+                                        class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                        rows="3"
+                                    ></textarea>
                                 
                                 <div class="flex items-center justify-between mt-4">
                                     <a 
@@ -388,6 +388,212 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Service Call Section -->
+                @if($task->serviceCall)
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                    <div class="flex items-center space-x-3 mb-6">
+                        <i class="fas fa-tools text-blue-600 text-xl"></i>
+                        <h2 class="text-lg font-semibold text-gray-900">Service Call</h2>
+                    </div>
+
+                    <div x-data="serviceCallInfo()" x-init="loadServiceCallOrder()">
+                        <div class="space-y-6">
+                            <!-- Service Type (Read-only) -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-3">
+                                    Service Type
+                                </label>
+                                <div class="flex items-center space-x-6">
+                                    <label class="flex items-center space-x-2 opacity-50 cursor-not-allowed">
+                                        <input
+                                            type="radio"
+                                            value="none"
+                                            disabled
+                                            @if($task->serviceCall->service_type === 'none') checked @endif
+                                            class="w-4 h-4 text-blue-600 border-gray-300"
+                                        />
+                                        <span class="text-sm text-gray-700">None</span>
+                                    </label>
+
+                                    <label class="flex items-center space-x-2 @if($task->serviceCall->service_type !== 'customer_damage') opacity-50 @endif cursor-not-allowed">
+                                        <input
+                                            type="radio"
+                                            value="customer_damage"
+                                            disabled
+                                            @if($task->serviceCall->service_type === 'customer_damage') checked @endif
+                                            class="w-4 h-4 text-blue-600 border-gray-300"
+                                        />
+                                        <span class="text-sm text-gray-700">Customer Related Damage</span>
+                                    </label>
+
+                                    <label class="flex items-center space-x-2 @if($task->serviceCall->service_type !== 'field_service') opacity-50 @endif cursor-not-allowed">
+                                        <input
+                                            type="radio"
+                                            value="field_service"
+                                            disabled
+                                            @if($task->serviceCall->service_type === 'field_service') checked @endif
+                                            class="w-4 h-4 text-blue-600 border-gray-300"
+                                        />
+                                        <span class="text-sm text-gray-700">Customer Related - Field Service Required</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Order Details Section -->
+                            <div class="space-y-4 pt-4 border-t">
+                                <!-- Loading State -->
+                                <div x-show="loading" class="flex items-center justify-center py-8">
+                                    <i class="fas fa-spinner fa-spin text-2xl text-blue-600 mr-3"></i>
+                                    <span class="text-gray-600">Loading order details...</span>
+                                </div>
+
+                                <!-- Order Details (after loaded) -->
+                                <div x-show="!loading && orderDetails" x-cloak class="space-y-4">
+                                    <!-- Customer & Order ID (Read-only) -->
+                                    
+
+                                    <!-- Selected Order Details -->
+                                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                        <div class="grid grid-cols-2 gap-4 text-sm">
+                                            <div>
+                                                <p class="font-medium text-gray-700">Order ID:</p>
+                                                <p class="text-gray-900" x-text="orderDetails?.orderNumber"></p>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-gray-700">Email:</p>
+                                                <p class="text-blue-600" x-text="orderDetails?.customer?.email || 'N/A'"></p>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-gray-700">Customer Name:</p>
+                                                <p class="text-gray-900" x-text="orderDetails?.customer ? (orderDetails.customer.firstName + ' ' + orderDetails.customer.lastName) : 'N/A'"></p>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-gray-700">Phone:</p>
+                                                <p class="text-gray-900" x-text="orderDetails?.customer?.phone || 'N/A'"></p>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-gray-700">Company:</p>
+                                                <p class="text-gray-900" x-text="orderDetails?.customer?.company || 'N/A'"></p>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-gray-700">Billing Address:</p>
+                                                <p class="text-gray-900" x-text="orderDetails?.billingAddress || 'N/A'"></p>
+                                                <template x-if="orderDetails?.billingAddress && orderDetails?.billingAddress !== 'N/A'">
+                                                    <a :href="'https://maps.google.com/?q=' + encodeURIComponent(orderDetails?.billingAddress)"
+                                                       target="_blank" 
+                                                       class="text-blue-600 text-xs hover:underline inline-block mt-1">
+                                                        See on maps
+                                                    </a>
+                                                </template>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-gray-700">Product:</p>
+                                                <p class="text-gray-900" x-text="orderDetails?.product"></p>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-gray-700">Shipping Address:</p>
+                                                <p class="text-gray-900" x-text="orderDetails?.shippingAddress || 'N/A'"></p>
+                                                <template x-if="orderDetails?.shippingAddress && orderDetails?.shippingAddress !== 'N/A'">
+                                                    <a :href="'https://maps.google.com/?q=' + encodeURIComponent(orderDetails?.shippingAddress)"
+                                                       target="_blank" 
+                                                       class="text-blue-600 text-xs hover:underline inline-block mt-1">
+                                                        See on maps
+                                                    </a>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Service Notes (if any) -->
+                                    @if($task->serviceCall->notes)
+                                    <div class="pt-2">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Service Notes</label>
+                                        <div class="bg-yellow-50 rounded-lg border border-yellow-200 p-3">
+                                            <p class="text-sm text-gray-900 whitespace-pre-line">{{ $task->serviceCall->notes }}</p>
+                                        </div>
+                                    </div>
+                                    @endif
+                                </div>
+
+                                <!-- Error State -->
+                                <div x-show="!loading && error" x-cloak class="text-center py-8">
+                                    <i class="fas fa-exclamation-triangle text-3xl text-red-600 mb-3"></i>
+                                    <p class="text-red-600" x-text="error"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                <!-- Invoice Section (Only shown if task has service call) -->
+                @if($task->serviceCall)
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6" x-data="{ showInvoiceSection: false }">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-file-invoice-dollar text-blue-600 text-xl"></i>
+                            <h2 class="text-lg font-semibold text-gray-900">Invoices</h2>
+                            <span class="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                                {{ $task->invoices->count() }}
+                            </span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button
+                                type="button"
+                                @click="showInvoiceSection = !showInvoiceSection"
+                                class="text-gray-600 hover:text-gray-900 transition-colors"
+                            >
+                                <i class="fas" :class="showInvoiceSection ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Invoice List (Collapsible) -->
+                    <div x-show="showInvoiceSection" x-cloak class="space-y-4">
+                        <!-- Create Invoice Form (Embedded) -->
+                        <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                            @include('tasks.invoices.create_embedded')
+                        </div>
+
+                        <!-- Existing Invoices List -->
+                        @if($task->invoices->count() > 0)
+                        <div class="space-y-3 mt-6">
+                            <h3 class="text-md font-semibold text-gray-900 mb-3">Existing Invoices</h3>
+                            @foreach($task->invoices as $invoice)
+                            <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex-1">
+                                        <div class="flex items-center space-x-3 mb-2">
+                                            <h4 class="font-semibold text-gray-900">{{ $invoice->invoice_number }}</h4>
+                                            <span class="px-2 py-1 rounded-full text-xs font-medium {{ 
+                                                $invoice->invoice_status === 'paid' ? 'bg-green-100 text-green-800' :
+                                                ($invoice->invoice_status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800')
+                                            }}">
+                                                {{ ucfirst($invoice->invoice_status) }}
+                                            </span>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                                            <div><span class="font-medium">Customer:</span> {{ $invoice->customer->full_name ?? 'N/A' }}</div>
+                                            <div><span class="font-medium">Total:</span> ${{ number_format($invoice->total, 2) }}</div>
+                                            <div><span class="font-medium">Date:</span> {{ $invoice->invoice_date->format('M d, Y') }}</div>
+                                            <div><span class="font-medium">Due:</span> {{ $invoice->due_date->format('M d, Y') }}</div>
+                                        </div>
+                                    </div>
+                                    <a
+                                        href="{{ route('tasks.invoices.show', [$task->id, $invoice->id]) }}"
+                                        class="ml-4 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                                    >
+                                        View
+                                    </a>
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                        @endif
+                    </div>
+                </div>
+                @endif
             </div>
 
             <!-- Sidebar -->
@@ -664,6 +870,46 @@ document.addEventListener('DOMContentLoaded', function() {
         video.load();
     });
 });
+
+function serviceCallInfo() {
+    return {
+        loading: false,
+        orderDetails: null,
+        error: null,
+
+        async loadServiceCallOrder() {
+            const orderId = '{{ $task->serviceCall->order_id ?? '' }}';
+            if (!orderId) {
+                this.error = 'No order ID associated with this service call.';
+                return;
+            }
+
+            this.loading = true;
+            this.error = null;
+
+            try {
+                const response = await fetch(`/api/orders/search?q=${encodeURIComponent(orderId)}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch order details');
+                }
+
+                const data = await response.json();
+                
+                if (data.orders && data.orders.length > 0) {
+                    // Find the exact match by order number
+                    this.orderDetails = data.orders.find(order => order.orderNumber === orderId) || data.orders[0];
+                } else {
+                    this.error = 'Order not found';
+                }
+            } catch (err) {
+                console.error('Error loading service call order:', err);
+                this.error = 'Failed to load order details. Please try again later.';
+            } finally {
+                this.loading = false;
+            }
+        }
+    }
+}
 </script>
 @endpush
 @endsection

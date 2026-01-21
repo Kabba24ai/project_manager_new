@@ -7,6 +7,7 @@ use App\Models\TaskList;
 use App\Models\User;
 use App\Models\Project;
 use App\Models\Attachment;
+use App\Models\ServiceCall;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -19,7 +20,14 @@ class TaskController extends Controller
         $project = Project::with(['taskLists', 'teamMembers'])->findOrFail($projectId);
 
         // Check if user has access to this project
-        $hasAccess = $project->created_by === Auth::id()
+        $user = Auth::user();
+        $userRoles = $user->getRoleNames();
+        $isMasterAdmin = $userRoles->contains(function ($role) {
+            return strtolower($role) === 'master admin' || strtolower($role) === 'master_admin';
+        });
+
+        $hasAccess = $isMasterAdmin
+            || $project->created_by === Auth::id()
             || $project->project_manager_id === Auth::id()
             || $project->teamMembers->contains('id', Auth::id());
 
@@ -100,6 +108,8 @@ class TaskController extends Controller
             'attachments.*' => 'file|max:102400|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,webm,pdf',
             'uploaded_files' => 'nullable|array',
             'uploaded_files.*' => 'string',
+            'service_call_type' => 'nullable|in:none,customer_damage,field_service',
+            'service_call_order_id' => 'nullable|string',
         ]);
 
         // Use task_list_id from request body if provided, otherwise use URL parameter
@@ -196,6 +206,16 @@ class TaskController extends Controller
         // Update session
         session(['temp_uploads' => $tempFiles]);
 
+        // Create service call if provided
+        if ($request->filled('service_call_type') && $request->service_call_type !== 'none' && $request->filled('service_call_order_id')) {
+            ServiceCall::create([
+                'task_id' => $task->id,
+                'service_type' => $request->service_call_type,
+                'order_id' => $request->service_call_order_id,
+                'notes' => '',
+            ]);
+        }
+
         $task->load('assignedUser');
 
         if ($request->expectsJson()) {
@@ -215,6 +235,8 @@ class TaskController extends Controller
             'project.teamMembers',
             'comments.author',
             'attachments.uploader',
+            'serviceCall',
+            'invoices.customer',
         ])->findOrFail($id);
 
         // Check if user has access to this task's project

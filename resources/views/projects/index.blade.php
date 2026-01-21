@@ -32,12 +32,20 @@
             <!-- Page Header -->
             <div class="flex justify-between items-center">
                 <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
-                <a href="{{ route('projects.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 transition-colors">
-                    <i class="fas fa-plus"></i>
-                    <span>Add Project</span>
-                </a>
+                <div class="flex items-center space-x-3">
+                    <a href="{{ route('task-templates.index') }}" class="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-blue-600 border border-gray-300 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors">
+                        <i class="fas fa-cog"></i>
+                        <span>Manage Templates</span>
+                    </a>
+                    <a href="{{ route('projects.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 transition-colors">
+                        <i class="fas fa-plus"></i>
+                        <span>Add Project</span>
+                    </a>
+                </div>
             </div>
-
+            <div class="team-mebers-bar">
+                @include('projects.team-members-bar')
+            </div>
             <!-- Projects Section -->
             <div class="space-y-4">
                 <div class="flex items-center justify-between">

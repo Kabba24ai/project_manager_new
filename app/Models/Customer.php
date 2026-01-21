@@ -2,36 +2,47 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Customer extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
+        'unique_id',
         'first_name',
         'last_name',
-        'company_name',
         'email',
         'phone',
-        'company_phone',
-        'status'
+        'company_name',
+        'tax_status',
+        'status',
     ];
 
+    protected $appends = ['full_name'];
+
     /**
-     * Get the full name of the customer
+     * Get the customer's full name
      */
     public function getFullNameAttribute()
     {
-        if ($this->company_name) {
-            return $this->company_name;
-        }
-        return trim("{$this->first_name} {$this->last_name}");
+        return trim($this->first_name . ' ' . $this->last_name);
     }
 
     /**
-     * Get the display name (prioritize company name, then full name)
+     * Get all addresses for the customer
      */
-    public function getNameAttribute()
+    public function addresses()
     {
-        return $this->full_name;
+        return $this->hasMany(\App\Models\CustomerAddress::class);
+    }
+
+    /**
+     * Get invoices for this customer (from project_manager)
+     */
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
     }
 }

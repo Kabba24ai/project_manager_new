@@ -295,6 +295,14 @@
                 </svg>
                 Print Receipt
             </button>
+
+            {{-- Email Receipt --}}
+            <a href="{{ route('tasks.invoices.email', [$task->id, $invoice->id]) }}" class="bg-green-600 hover:bg-green-700 text-white gap-2 text-sm px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                </svg>
+                Email Receipt
+            </a>
             
             {{-- Download PDF --}}
             <a href="{{ route('tasks.invoices.download', [$task->id, $invoice->id]) }}" class="bg-purple-600 hover:bg-purple-700 text-white gap-2 text-sm px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2">
@@ -304,13 +312,7 @@
                 Download PDF
             </a>
             
-            {{-- Email Receipt --}}
-            <a href="{{ route('tasks.invoices.email', [$task->id, $invoice->id]) }}" class="bg-green-600 hover:bg-green-700 text-white gap-2 text-sm px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                </svg>
-                Email Receipt
-            </a>
+            
         </div>
     </div>
 </div>

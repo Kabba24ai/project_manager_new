@@ -492,9 +492,14 @@
                                                 <p class="text-gray-900" x-text="orderDetails?.product"></p>
                                             </div>
                                             <div>
-                                                <p class="font-medium text-gray-700">Shipping Address:</p>
-                                                <p class="text-gray-900" x-text="orderDetails?.shippingAddress || 'N/A'"></p>
-                                                <template x-if="orderDetails?.shippingAddress && orderDetails?.shippingAddress !== 'N/A'">
+                                                <p class="font-medium text-gray-700">Delivery Info:</p>
+                                                <template x-if="orderDetails?.shippingAddress === orderDetails?.billingAddress && orderDetails?.billingAddress && orderDetails?.billingAddress !== 'N/A'">
+                                                    <p class="text-gray-900 italic">Same as billing information</p>
+                                                </template>
+                                                <template x-if="orderDetails?.shippingAddress !== orderDetails?.billingAddress || !orderDetails?.billingAddress || orderDetails?.billingAddress === 'N/A'">
+                                                    <p class="text-gray-900" x-text="orderDetails?.shippingAddress || 'N/A'"></p>
+                                                </template>
+                                                <template x-if="orderDetails?.shippingAddress && orderDetails?.shippingAddress !== 'N/A' && orderDetails?.shippingAddress !== orderDetails?.billingAddress">
                                                     <a :href="'https://maps.google.com/?q=' + encodeURIComponent(orderDetails?.shippingAddress)"
                                                        target="_blank" 
                                                        class="text-blue-600 text-xs hover:underline inline-block mt-1">

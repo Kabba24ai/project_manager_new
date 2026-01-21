@@ -347,12 +347,14 @@
                                 x-model="description"
                                 required
                                 rows="4"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none @error('description') border-red-300 bg-red-50 @enderror"
+                                :class="descriptionError ? 'border-red-300 bg-red-50' : 'border-gray-300'"
+                                class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none @error('description') border-red-300 bg-red-50 @enderror"
                                 placeholder="Describe the task requirements and goals"
                             >{{ old('description') }}</textarea>
                             @error('description')
                             <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                             @enderror
+                            <p x-show="descriptionError" class="mt-2 text-sm text-red-600" x-text="descriptionError"></p>
                         </div>
 
                         <!-- Priority, Assigned To, Sprint -->
@@ -770,9 +772,14 @@
                                         <p class="text-gray-900" x-text="selectedServiceCallOrder?.product"></p>
                                     </div>
                                     <div >
-                                        <p class="font-medium text-gray-700">Shipping Address:</p>
-                                        <p class="text-gray-900" x-text="selectedServiceCallOrder?.shippingAddress || 'N/A'"></p>
-                                        <template x-if="selectedServiceCallOrder?.shippingAddress && selectedServiceCallOrder?.shippingAddress !== 'N/A'">
+                                        <p class="font-medium text-gray-700">Delivery Info:</p>
+                                        <template x-if="selectedServiceCallOrder?.shippingAddress === selectedServiceCallOrder?.billingAddress && selectedServiceCallOrder?.billingAddress && selectedServiceCallOrder?.billingAddress !== 'N/A'">
+                                            <p class="text-gray-900 italic">Same as billing information</p>
+                                        </template>
+                                        <template x-if="selectedServiceCallOrder?.shippingAddress !== selectedServiceCallOrder?.billingAddress || !selectedServiceCallOrder?.billingAddress || selectedServiceCallOrder?.billingAddress === 'N/A'">
+                                            <p class="text-gray-900" x-text="selectedServiceCallOrder?.shippingAddress || 'N/A'"></p>
+                                        </template>
+                                        <template x-if="selectedServiceCallOrder?.shippingAddress && selectedServiceCallOrder?.shippingAddress !== 'N/A' && selectedServiceCallOrder?.shippingAddress !== selectedServiceCallOrder?.billingAddress">
                                             <a :href="'https://maps.google.com/?q=' + encodeURIComponent(selectedServiceCallOrder?.shippingAddress)"
                                                target="_blank" 
                                                class="text-blue-600 text-xs hover:underline inline-block mt-1">
@@ -956,6 +963,7 @@ function taskForm() {
         taskListId: '{{ old('task_list_id', $taskListId ?? '') }}',
         title: '{{ old('title', '') }}',
         description: '{{ old('description', '') }}',
+        descriptionError: '',
         showTooltip: null,
         attachments: [],
         
@@ -1488,6 +1496,21 @@ function taskForm() {
         },
         
         submitWithProgress() {
+            // Clear previous errors
+            this.descriptionError = '';
+            
+            // Validate description
+            if (!this.description || this.description.trim() === '') {
+                this.descriptionError = 'Task description is required.';
+                // Focus on description field
+                const descriptionField = document.getElementById('description');
+                if (descriptionField) {
+                    descriptionField.focus();
+                    descriptionField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return;
+            }
+            
             // Check if any files are still uploading
             const stillUploading = this.attachments.some(file => file.uploading);
             if (stillUploading) {

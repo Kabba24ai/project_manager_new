@@ -66,8 +66,8 @@
 </style>
 @endpush
 
-<div class="bg-gray-50 px-4 mb-4 py-4 border-b border-gray-200 no-print">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+<div class="bg-white border-b border-gray-200 px-4 mb-4 py-4 border-b border-gray-200 no-print">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 max-w-6xl mx-auto ">
         <div class="flex flex-col sm:flex-row sm:items-center gap-4">
             <a href="{{ route('tasks.show', $task->id) }}" class="flex items-center text-gray-600 hover:text-gray-800 transition">
                 <svg class="w-5 h-5 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">

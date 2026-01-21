@@ -6,7 +6,7 @@
 <div class="min-h-screen bg-gray-50">
     <!-- Header -->
     <div class="bg-white border-b border-gray-200">
-        <div class="max-w-7xl mx-auto px-6 py-4">
+        <div class="max-w-6xl mx-auto px-6 py-4">
             <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center space-x-4">
                     <a href="{{ route('dashboard') }}" class="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors">
@@ -157,7 +157,7 @@
     </div>
 
     <!-- Content -->
-    <div class="max-w-7xl mx-auto px-6 py-8">
+    <div class="max-w-6xl mx-auto px-6 py-8">
 
     <!-- Project Attachments -->
     @if($project->attachments->count() > 0)

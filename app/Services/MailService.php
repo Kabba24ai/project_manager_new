@@ -20,11 +20,32 @@ class MailService
     private function loadMailSettings(): void
     {
         try {
-            // Try to load from settings table
-            $settings = DB::table('settings')
-                ->where('group', 'mail')
-                ->pluck('value', 'key')
-                ->toArray();
+            // Try different table structures
+            $settings = [];
+            
+            // Try structure: settings table with group and key columns
+            if (DB::getSchemaBuilder()->hasTable('settings')) {
+                $columns = DB::getSchemaBuilder()->getColumnListing('settings');
+                
+                if (in_array('group', $columns) && in_array('key', $columns)) {
+                    // Structure: group='mail' or group='Mail Send Settings'
+                    $settings = DB::table('settings')
+                        ->where(function($query) {
+                            $query->where('group', 'mail')
+                                  ->orWhere('group', 'Mail Send Settings');
+                        })
+                        ->pluck('value', 'key')
+                        ->toArray();
+                } elseif (in_array('key', $columns)) {
+                    // Structure: just key-value pairs
+                    $mailKeys = ['mail_mailer', 'mail_host', 'mail_port', 'mail_username', 
+                                'mail_password', 'mail_encryption', 'mail_from_address', 'mail_from_name'];
+                    $settings = DB::table('settings')
+                        ->whereIn('key', $mailKeys)
+                        ->pluck('value', 'key')
+                        ->toArray();
+                }
+            }
 
             $this->settings = [
                 'mailer'     => $settings['mail_mailer'] ?? config('mail.default', 'smtp'),
@@ -38,10 +59,22 @@ class MailService
                     'name'    => $settings['mail_from_name'] ?? config('mail.from.name'),
                 ],
             ];
+            
+            // Log loaded settings (without password)
+            Log::info('Mail settings loaded', [
+                'mailer' => $this->settings['mailer'],
+                'host' => $this->settings['host'],
+                'port' => $this->settings['port'],
+                'from_address' => $this->settings['from']['address'],
+                'has_username' => !empty($this->settings['username']),
+                'has_password' => !empty($this->settings['password']),
+            ]);
+            
         } catch (\Throwable $e) {
             // Fallback to config if database fails
             Log::warning('Failed to load mail settings from database, using config', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             $this->settings = [

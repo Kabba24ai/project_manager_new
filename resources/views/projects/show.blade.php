@@ -288,7 +288,7 @@
         </div>
 
         <!-- Task Filters -->
-        <div x-show="showFilters" x-cloak x-transition class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-4">
+        <div x-show="showFilters" x-cloak x-transition class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-4 mb-4">
             <div class="flex flex-col lg:flex-row lg:items-end gap-4">
                 <div class="flex-1">
                     <label for="task_name_filter" class="block text-sm font-medium text-gray-700 mb-1">Task Name</label>

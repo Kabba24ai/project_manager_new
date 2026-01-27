@@ -269,7 +269,7 @@ class TaskController extends Controller
 
     public function edit($id)
     {
-        $task = Task::with(['taskList.project.teamMembers', 'attachments.uploader'])->findOrFail($id);
+        $task = Task::with(['taskList.project.teamMembers', 'attachments.uploader', 'serviceCall'])->findOrFail($id);
 
         // Check if user can edit this task (must be team member or master admin)
         $user = Auth::user();
@@ -289,10 +289,59 @@ class TaskController extends Controller
             abort(403, 'You do not have permission to edit this task.');
         }
 
-        $users = User::with('roles')->get();
-        $project = Project::with('taskLists')->findOrFail($task->project_id);
+        // Only allow assigning tasks to project team members (exclude creator/manager)
+        $projectUserIds = $project->teamMembers
+            ->pluck('id')
+            ->filter()
+            ->unique()
+            ->values();
 
-        return view('tasks.edit', compact('task', 'users', 'project'));
+        $users = User::with('roles')
+            ->whereIn('id', $projectUserIds)
+            ->orderBy('first_name')
+            ->get();
+        
+        // Ensure project has taskLists loaded
+        $project->load('taskLists');
+        
+        // Load equipment categories with their equipment
+        $equipmentCategories = \App\Models\ProductCategory::with(['equipment' => function ($query) {
+            $query->orderBy('equipment_name');
+        }])->orderBy('title')->get();
+        
+        // Transform to match the expected structure for the frontend
+        $equipmentCategories = $equipmentCategories->map(function ($category) {
+            return [
+                'id' => $category->id,
+                'name' => $category->title,
+                'equipment' => $category->equipment->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'name' => $item->equipment_name,
+                        'equipment_id' => $item->equipment_id,
+                        'current_status' => $item->current_status,
+                        'status' => $item->current_status,
+                        'available' => $item->current_status === 'available',
+                    ];
+                })
+            ];
+        });
+        
+        // Load customers
+        $customers = \App\Models\Customer::where('status', 'Active')
+            ->orderBy('company_name')
+            ->orderBy('first_name')
+            ->get()
+            ->map(function ($customer) {
+                return [
+                    'id' => $customer->id,
+                    'name' => $customer->full_name,
+                    'email' => $customer->email ?? '',
+                    'phone' => $customer->phone ?? $customer->company_phone ?? '',
+                ];
+            });
+
+        return view('tasks.edit', compact('task', 'users', 'project', 'equipmentCategories', 'customers'));
     }
 
     public function update(Request $request, $id)

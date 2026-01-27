@@ -24,58 +24,9 @@
                         <span>Back to Project</span>
                     </a>
                     <div class="h-6 w-px bg-gray-300"></div>
-                    <div class="flex items-center space-x-3">
-                        <span class="text-lg">
-                            @if($task->task_type === 'general')📝
-                            @elseif($task->task_type === 'equipmentId')🔧
-                            @elseif($task->task_type === 'customerName')👤
-                            @elseif($task->task_type === 'feature')✨
-                            @elseif($task->task_type === 'bug')🐛
-                            @elseif($task->task_type === 'design')🎨
-                            @else📝
-                            @endif
-                        </span>
-                        <h1 class="text-2xl font-bold text-gray-900">{{ $task->title }}</h1>
-                        <span class="px-2 py-1 rounded-full text-xs font-medium border {{ 
-                            $task->priority === 'urgent' ? 'bg-red-100 text-red-800 border-red-200' :
-                            ($task->priority === 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' :
-                            ($task->priority === 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'))
-                        }}">
-                            {{ ucfirst($task->priority) }}
-                        </span>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-3">
-                    <!-- Status Dropdown -->
-                    <div class="relative" x-data="{ open: false }">
-                        <button @click="open = !open" class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors {{ $task->taskList->color }} hover:shadow-sm">
-                            <span>{{ $task->taskList->name }}</span>
-                            <i class="fas fa-chevron-down w-4 h-4"></i>
-                        </button>
-                        
-                        <div x-show="open" @click.away="open = false" x-cloak class="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-20 min-w-[140px]">
-                            @foreach($task->project->taskLists as $list)
-                            <form action="{{ route('tasks.update', $task->id) }}" method="POST" class="inline w-full">
-                                @csrf
-                                @method('PUT')
-                                <input type="hidden" name="task_list_id" value="{{ $list->id }}">
-                                <button type="submit" class="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 transition-colors {{ $task->task_list_id === $list->id ? 'bg-blue-50 text-blue-600' : 'text-gray-700' }}">
-                                    <div class="flex items-center justify-between">
-                                        <span>{{ $list->name }}</span>
-                                        @if($task->task_list_id === $list->id)<span class="text-blue-600">✓</span>@endif
-                                    </div>
-                                </button>
-                            </form>
-                            @endforeach
-                        </div>
-                    </div>
                     
-                    @if($canEditTask)
-                    <a href="{{ route('tasks.edit', $task->id) }}" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
-                        <i class="fas fa-edit mr-2"></i>Edit Task
-                    </a>
-                    @endif
                 </div>
+               
             </div>
         </div>
     </div>
@@ -87,7 +38,17 @@
             <div class="lg:col-span-2">
                 <!-- Description -->
                 <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Description</h2>
+                    <div class="flex items-center space-x-3">
+                        <span class="text-lg">
+                            @if($task->task_type === 'general')📝
+                            @elseif($task->task_type === 'equipmentId')🔧
+                            @elseif($task->task_type === 'customerName')👤
+                            @else📝
+                            @endif
+                        </span>
+                        <h1 class="text-2xl font-bold text-gray-900">{{ $task->title }}</h1>
+                        
+                    </div>
                     <p class="text-gray-700 whitespace-pre-line">{{ $task->description }}</p>
                 </div>
 
@@ -293,7 +254,11 @@
                     <!-- Comments List -->
                     <div class="space-y-6 mb-8">
                         @forelse($task->comments as $comment)
-                        <div class="flex space-x-4">
+                        <div class="flex space-x-4" x-data="{ 
+                            isEditing: false, 
+                            editContent: '{{ addslashes($comment->content) }}',
+                            isSaving: false
+                        }">
                             <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
                                 <span class="text-sm font-medium text-white">{{ strtoupper(substr($comment->author->name, 0, 2)) }}</span>
                             </div>
@@ -301,42 +266,73 @@
                                 <div class="bg-gray-50 rounded-lg p-4">
                                     <div class="flex items-center justify-between mb-3">
                                         <span class="text-sm font-medium text-gray-900">{{ $comment->author->name }}</span>
-                                        <span class="text-xs text-gray-500">{{ $comment->created_at->diffForHumans() }}</span>
+                                        @if($comment->user_id === auth()->id())
+                                        <div class="flex items-center space-x-2">
+                                            <button 
+                                                @click="isEditing = true" 
+                                                x-show="!isEditing"
+                                                class="text-gray-500 hover:text-blue-600 transition-colors"
+                                                title="Edit comment"
+                                            >
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button 
+                                                @click="if(confirm('Are you sure you want to delete this comment?')) { deleteComment({{ $comment->id }}) }"
+                                                x-show="!isEditing"
+                                                class="text-gray-500 hover:text-red-600 transition-colors"
+                                                title="Delete comment"
+                                            >
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                        @endif
                                     </div>
-                                    <p class="text-sm text-gray-700">{{ $comment->content }}</p>
+                                    
+                                    <!-- View Mode -->
+                                    <div x-show="!isEditing">
+                                        <p class="text-sm text-gray-700 mb-2">{{ $comment->content }}</p>
+                                        <div class="flex justify-end">
+                                        <span class="text-xs text-gray-500">{{ $comment->created_at->diffForHumans() }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Edit Mode -->
+                                    <div x-show="isEditing" x-cloak>
+                                        <textarea 
+                                            x-model="editContent"
+                                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                                            rows="3"
+                                        ></textarea>
+                                        <div class="flex items-center justify-end space-x-2 mt-2">
+                                            <button 
+                                                @click="isEditing = false; editContent = '{{ addslashes($comment->content) }}'"
+                                                :disabled="isSaving"
+                                                class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button 
+                                                @click="updateComment({{ $comment->id }})"
+                                                :disabled="!editContent.trim() || isSaving"
+                                                class="px-4 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <span x-show="!isSaving">Save</span>
+                                                <span x-show="isSaving">
+                                                    <i class="fas fa-spinner fa-spin"></i> Saving...
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         @empty
-                        <div x-show="stagedComments.length === 0" class="text-center py-12 text-gray-500">
+                        <div class="text-center py-12 text-gray-500">
                             <i class="fas fa-comment text-5xl text-gray-300 mb-4"></i>
                             <h4 class="text-lg font-medium text-gray-900 mb-2">No comments yet</h4>
                             <p class="text-sm">Start the conversation by adding the first comment!</p>
                         </div>
                         @endforelse
-                        
-                        <!-- Staged Comments (Temporary) -->
-                        <template x-for="(comment, index) in stagedComments" :key="index">
-                            <div class="flex space-x-4">
-                                <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                                    <span class="text-sm font-medium text-white">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
-                                        <div class="flex items-center justify-between mb-3">
-                                            <div class="flex items-center space-x-2">
-                                                <span class="text-sm font-medium text-gray-900">{{ auth()->user()->name }}</span>
-                                                <span class="px-2 py-0.5 bg-yellow-200 text-yellow-800 text-xs rounded-full font-medium">Pending</span>
-                                            </div>
-                                            <button @click="removeStagedComment(index)" class="text-red-600 hover:text-red-800">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                        </div>
-                                        <p class="text-sm text-gray-700" x-text="comment"></p>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
                     </div>
 
                     <!-- Add Comment Form -->
@@ -366,11 +362,11 @@
                                         <button
                                             type="button"
                                             @click="addComment"
-                                            :disabled="!newComment.trim()"
+                                            :disabled="!newComment.trim() || isSavingComment"
                                             class="flex items-center space-x-2 px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            <i class="fas fa-comment"></i>
-                                            <span>Add Comment</span>
+                                            <i class="fas" :class="isSavingComment ? 'fa-spinner fa-spin' : 'fa-comment'"></i>
+                                            <span x-text="isSavingComment ? 'Saving...' : 'Add Comment'"></span>
                                         </button>
                                         
                                         <button
@@ -714,7 +710,7 @@
 
                     <!-- Actions -->
                     @if($canEditTask)
-                    <div class="mt-6 pt-6 border-t border-gray-200 space-y-2">
+                    <div class="mt-6 pt-6 border-t border-gray-200  inline-grid grid-cols-2 space-x-2 align-items-center">
                         <a href="{{ route('tasks.edit', $task->id) }}" class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
                             <i class="fas fa-edit mr-2"></i>Edit Task
                         </a>
@@ -743,26 +739,102 @@ function taskChangesManager() {
     return {
         stagedStatus: '{{ $task->task_status }}',
         originalStatus: '{{ $task->task_status }}',
-        stagedComments: [],
         newComment: '',
+        isSavingComment: false,
         
         get hasChanges() {
-            return this.stagedStatus !== this.originalStatus || this.stagedComments.length > 0;
+            return this.stagedStatus !== this.originalStatus;
         },
         
         setStatus(status) {
             this.stagedStatus = status;
         },
         
-        addComment() {
-            if (this.newComment.trim()) {
-                this.stagedComments.push(this.newComment.trim());
-                this.newComment = '';
+        async addComment() {
+            if (!this.newComment.trim()) return;
+            
+            this.isSavingComment = true;
+            
+            try {
+                const response = await fetch('{{ route('comments.store', $task->id) }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        content: this.newComment.trim()
+                    })
+                });
+                
+                if (response.ok) {
+                    // Reload the page to show the new comment
+                    window.location.reload();
+                } else {
+                    throw new Error('Failed to save comment');
+                }
+            } catch (error) {
+                console.error('Error saving comment:', error);
+                alert('Failed to save comment. Please try again.');
+                this.isSavingComment = false;
             }
         },
         
-        removeStagedComment(index) {
-            this.stagedComments.splice(index, 1);
+        async updateComment(commentId) {
+            const commentElement = event.target.closest('[x-data]');
+            const editContent = Alpine.$data(commentElement).editContent;
+            
+            if (!editContent.trim()) return;
+            
+            Alpine.$data(commentElement).isSaving = true;
+            
+            try {
+                const response = await fetch(`/tasks/{{ $task->id }}/comments/${commentId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        content: editContent.trim()
+                    })
+                });
+                
+                if (response.ok) {
+                    // Reload the page to show the updated comment
+                    window.location.reload();
+                } else {
+                    throw new Error('Failed to update comment');
+                }
+            } catch (error) {
+                console.error('Error updating comment:', error);
+                alert('Failed to update comment. Please try again.');
+                Alpine.$data(commentElement).isSaving = false;
+            }
+        },
+        
+        async deleteComment(commentId) {
+            try {
+                const response = await fetch(`/tasks/{{ $task->id }}/comments/${commentId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    // Reload the page to remove the deleted comment
+                    window.location.reload();
+                } else {
+                    throw new Error('Failed to delete comment');
+                }
+            } catch (error) {
+                console.error('Error deleting comment:', error);
+                alert('Failed to delete comment. Please try again.');
+            }
         },
         
         async saveAllChanges() {
@@ -785,21 +857,6 @@ function taskChangesManager() {
                         },
                         body: JSON.stringify({
                             status: this.stagedStatus
-                        })
-                    });
-                }
-                
-                // Save all staged comments
-                for (const comment of this.stagedComments) {
-                    await fetch('{{ route('comments.store', $task->id) }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            content: comment
                         })
                     });
                 }

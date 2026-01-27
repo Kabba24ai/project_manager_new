@@ -28,7 +28,7 @@ class Customer extends Model
     public function getFullNameAttribute()
     {
         return trim($this->first_name . ' ' . $this->last_name);
-    }
+        }
 
     /**
      * Get all addresses for the customer

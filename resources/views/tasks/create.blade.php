@@ -1276,6 +1276,14 @@ function taskForm() {
             
             // Reset file input
             event.target.value = '';
+            
+            // Scroll to bottom to show the "Create Task" button
+            setTimeout(() => {
+                window.scrollTo({
+                    top: document.body.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }, 100);
         },
         
         uploadFile(file, fileIndex) {

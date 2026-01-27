@@ -60,8 +60,8 @@ class AttachmentController extends Controller
 
         // If it's an image, try to generate/use thumbnail
         if ($attachment->isImage()) {
-            // If thumbnail doesn't exist, generate it
-            if (!$attachment->thumbnail_path || !Storage::disk('local')->exists($attachment->thumbnail_path)) {
+        // If thumbnail doesn't exist, generate it
+        if (!$attachment->thumbnail_path || !Storage::disk('local')->exists($attachment->thumbnail_path)) {
                 $this->generateImageThumbnail($attachment);
                 $attachment->refresh(); // Reload to get updated thumbnail_path
             }

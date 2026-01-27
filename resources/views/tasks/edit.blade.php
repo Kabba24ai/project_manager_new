@@ -790,13 +790,13 @@
                                             />
                                         </div>
 
-                                        <div x-show="showServiceCallOrderDropdown || loadingServiceCallOrders" 
+                                        <div x-show="!selectedServiceCallOrder && ((selectedServiceCallCustomer && serviceCallOrders.length > 0) || loadingServiceCallOrders || (showServiceCallOrderDropdown && serviceCallOrderSearch.length >= 2))" 
                                              x-cloak
                                              class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                                             <!-- Loading state -->
                                             <div x-show="loadingServiceCallOrders" class="px-4 py-3 text-center text-gray-500">
                                                 <i class="fas fa-spinner fa-spin mr-2"></i>
-                                                Searching orders...
+                                                Loading orders...
                                             </div>
                                             
                                             <!-- No results state -->
@@ -1566,13 +1566,34 @@ function taskForm() {
             }
         },
         
-        handleServiceCallCustomerSelect(customer) {
+        async handleServiceCallCustomerSelect(customer) {
             this.selectedServiceCallCustomer = customer;
             this.serviceCallCustomerSearch = customer.firstName + ' ' + customer.lastName;
             this.showServiceCallCustomerDropdown = false;
             
-            if (this.serviceCallOrders.length > 0) {
-                this.showServiceCallOrderDropdown = true;
+            // Automatically load orders for the selected customer
+            this.loadingServiceCallOrders = true;
+            this.showServiceCallOrderDropdown = true;
+            
+            try {
+                const response = await fetch(`/api/customers/${customer.id}/orders`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                this.serviceCallOrders = data.orders || [];
+                
+                if (this.serviceCallOrders.length === 0) {
+                    this.showServiceCallOrderDropdown = false;
+                }
+            } catch (error) {
+                console.error('Failed to load customer orders:', error);
+                this.serviceCallOrders = [];
+                this.showServiceCallOrderDropdown = false;
+            } finally {
+                this.loadingServiceCallOrders = false;
             }
         },
         
@@ -1641,6 +1662,14 @@ function taskForm() {
             this.serviceCallOrderId = order.orderNumber;
             this.serviceCallOrderSearch = order.orderNumber;
             this.showServiceCallOrderDropdown = false;
+            
+            // Scroll to bottom to show customer info and Update Task button
+            setTimeout(() => {
+                window.scrollTo({
+                    top: document.body.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }, 100);
         },
         
         clearServiceCallData() {

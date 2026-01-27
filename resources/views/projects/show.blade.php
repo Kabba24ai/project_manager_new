@@ -234,6 +234,13 @@
                     this.expandedTaskListId = null;
                 } else {
                     this.expandedTaskListId = taskListId;
+                    // Scroll to the expanded task list section
+                    setTimeout(() => {
+                        const expandedSection = document.getElementById('expanded-task-lists-section');
+                        if (expandedSection) {
+                            expandedSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    }, 100);
                 }
             }
         }">
@@ -409,7 +416,7 @@
                                     {{ $taskList->tasks->count() }} {{ $taskList->tasks->count() === 1 ? 'task' : 'tasks' }}
                                 </span>
                                 <a href="{{ route('tasks.create', $project->id) }}?task_list_id={{ $taskList->id }}" 
-                                   class="px-3 py-1 bg-gray-100 text-gray-700  rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-1">
+                                   class="px-3 py-1 bg-gray-100 text-gray-700   rounded-lg hover:bg-blue-700 transition-colors hover:text-white text-sm font-medium flex items-center gap-1">
                                     <i class="fas fa-plus text-xs"></i>
                                     <span>Add Task</span>
                                 </a>
@@ -431,7 +438,7 @@
                 </div>
                 
                 <!-- Expanded Task List Details (shown below grid) -->
-                <div x-show="expandedTaskListId !== null" class="mt-8" x-transition>
+                <div id="expanded-task-lists-section" x-show="expandedTaskListId !== null" class="mt-8" x-transition>
                     @foreach($project->taskLists->sortBy('order') as $taskList)
                     <div x-show="expandedTaskListId === {{ $taskList->id }}" class="bg-white rounded-lg shadow-sm border border-gray-200">
                             <!-- Task List Header -->

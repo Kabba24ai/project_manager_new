@@ -701,13 +701,13 @@
                                             />
                                         </div>
 
-                                        <div x-show="showServiceCallOrderDropdown || loadingServiceCallOrders" 
+                                        <div x-show="!selectedServiceCallOrder && ((selectedServiceCallCustomer && serviceCallOrders.length > 0) || loadingServiceCallOrders || (showServiceCallOrderDropdown && serviceCallOrderSearch.length >= 2))" 
                                              x-cloak
                                              class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                                             <!-- Loading state -->
                                             <div x-show="loadingServiceCallOrders" class="px-4 py-3 text-center text-gray-500">
                                                 <i class="fas fa-spinner fa-spin mr-2"></i>
-                                                Searching orders...
+                                                Loading orders...
                                             </div>
                                             
                                             <!-- No results state -->
@@ -1405,24 +1405,41 @@ function taskForm() {
             }
         },
         
-        handleServiceCallCustomerSelect(customer) {
+        async handleServiceCallCustomerSelect(customer) {
             this.selectedServiceCallCustomer = customer;
             this.serviceCallCustomerSearch = customer.firstName + ' ' + customer.lastName;
             this.showServiceCallCustomerDropdown = false;
             
-            // Trigger order search to filter by customer
-            if (this.serviceCallOrders.length > 0) {
-                this.showServiceCallOrderDropdown = true;
+            // Automatically load orders for the selected customer
+            this.loadingServiceCallOrders = true;
+            this.showServiceCallOrderDropdown = true;
+            
+            try {
+                const response = await fetch(`/api/customers/${customer.id}/orders`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                this.serviceCallOrders = data.orders || [];
+                
+                if (this.serviceCallOrders.length === 0) {
+                    this.showServiceCallOrderDropdown = false;
+                }
+            } catch (error) {
+                console.error('Failed to load customer orders:', error);
+                this.serviceCallOrders = [];
+                this.showServiceCallOrderDropdown = false;
+            } finally {
+                this.loadingServiceCallOrders = false;
             }
         },
         
         async handleServiceCallOrderSearch() {
             const searchTerm = this.serviceCallOrderSearch.trim();
             
-            console.log('🔍 Order search triggered. Term:', searchTerm, 'Length:', searchTerm.length);
-            
             if (!searchTerm || searchTerm.length < 2) {
-                console.log('❌ Search term too short');
                 this.serviceCallOrders = [];
                 this.selectedServiceCallOrder = null;
                 this.serviceCallOrderId = '';
@@ -1433,7 +1450,6 @@ function taskForm() {
             this.loadingServiceCallOrders = true;
             try {
                 const url = `/api/orders/search?q=${encodeURIComponent(searchTerm)}`;
-                console.log('📡 Fetching from:', url);
                 const response = await fetch(url);
                 
                 if (!response.ok) {
@@ -1441,14 +1457,11 @@ function taskForm() {
                 }
                 
                 const data = await response.json();
-                console.log('✅ Response received:', data);
-                console.log('📦 Orders count:', data.orders ? data.orders.length : 0);
                 
                 this.serviceCallOrders = data.orders || [];
                 this.showServiceCallOrderDropdown = this.serviceCallOrders.length > 0;
-                console.log('🎯 Dropdown visible:', this.showServiceCallOrderDropdown);
             } catch (error) {
-                console.error('❌ Failed to search orders:', error);
+                console.error('Failed to search orders:', error);
                 this.serviceCallOrders = [];
                 this.showServiceCallOrderDropdown = false;
             } finally {
@@ -1489,6 +1502,14 @@ function taskForm() {
             this.serviceCallOrderId = order.orderNumber;
             this.serviceCallOrderSearch = order.orderNumber;
             this.showServiceCallOrderDropdown = false;
+            
+            // Scroll to bottom to show customer info and Create Task button
+            setTimeout(() => {
+                window.scrollTo({
+                    top: document.body.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }, 100);
         },
         
         clearServiceCallData() {

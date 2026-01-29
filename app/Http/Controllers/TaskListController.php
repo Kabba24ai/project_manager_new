@@ -14,7 +14,15 @@ class TaskListController extends Controller
         $project = Project::findOrFail($projectId);
 
         // Check if user has access to this project
-        $hasAccess = $project->created_by === Auth::id()
+        $user = Auth::user();
+        $userRoles = $user->roles ?? collect();
+        $userRoleNames = $userRoles->pluck('name')->map(function($name) {
+            return strtolower(str_replace([' ', '_', '-'], '', $name));
+        })->toArray();
+        $isMasterAdmin = in_array('masteradmin', $userRoleNames);
+        
+        $hasAccess = $isMasterAdmin
+            || $project->created_by === Auth::id()
             || $project->project_manager_id === Auth::id()
             || $project->teamMembers->contains('id', Auth::id());
 
@@ -39,7 +47,15 @@ class TaskListController extends Controller
         $project = Project::findOrFail($projectId);
 
         // Check if user has access to this project
-        $hasAccess = $project->created_by === Auth::id()
+        $user = Auth::user();
+        $userRoles = $user->roles ?? collect();
+        $userRoleNames = $userRoles->pluck('name')->map(function($name) {
+            return strtolower(str_replace([' ', '_', '-'], '', $name));
+        })->toArray();
+        $isMasterAdmin = in_array('masteradmin', $userRoleNames);
+        
+        $hasAccess = $isMasterAdmin
+            || $project->created_by === Auth::id()
             || $project->project_manager_id === Auth::id()
             || $project->teamMembers->contains('id', Auth::id());
 
@@ -55,7 +71,15 @@ class TaskListController extends Controller
         $project = Project::findOrFail($projectId);
 
         // Check if user can create task lists
-        $hasAccess = $project->created_by === Auth::id()
+        $user = Auth::user();
+        $userRoles = $user->roles ?? collect();
+        $userRoleNames = $userRoles->pluck('name')->map(function($name) {
+            return strtolower(str_replace([' ', '_', '-'], '', $name));
+        })->toArray();
+        $isMasterAdmin = in_array('masteradmin', $userRoleNames);
+        
+        $hasAccess = $isMasterAdmin
+            || $project->created_by === Auth::id()
             || $project->project_manager_id === Auth::id()
             || $project->teamMembers->contains('id', Auth::id());
 
@@ -94,7 +118,15 @@ class TaskListController extends Controller
             ->findOrFail($id);
 
         // Check if user has access to this project
-        $hasAccess = $project->created_by === Auth::id()
+        $user = Auth::user();
+        $userRoles = $user->roles ?? collect();
+        $userRoleNames = $userRoles->pluck('name')->map(function($name) {
+            return strtolower(str_replace([' ', '_', '-'], '', $name));
+        })->toArray();
+        $isMasterAdmin = in_array('masteradmin', $userRoleNames);
+        
+        $hasAccess = $isMasterAdmin
+            || $project->created_by === Auth::id()
             || $project->project_manager_id === Auth::id()
             || $project->teamMembers->contains('id', Auth::id());
 
@@ -112,10 +144,20 @@ class TaskListController extends Controller
     public function edit($projectId, $id)
     {
         $project = Project::findOrFail($projectId);
-        $taskList = TaskList::where('project_id', $projectId)->findOrFail($id);
+        $taskList = TaskList::with('tasks')
+            ->where('project_id', $projectId)
+            ->findOrFail($id);
 
         // Check if user has access to this project
-        $hasAccess = $project->created_by === Auth::id()
+        $user = Auth::user();
+        $userRoles = $user->roles ?? collect();
+        $userRoleNames = $userRoles->pluck('name')->map(function($name) {
+            return strtolower(str_replace([' ', '_', '-'], '', $name));
+        })->toArray();
+        $isMasterAdmin = in_array('masteradmin', $userRoleNames);
+        
+        $hasAccess = $isMasterAdmin
+            || $project->created_by === Auth::id()
             || $project->project_manager_id === Auth::id()
             || $project->teamMembers->contains('id', Auth::id());
 

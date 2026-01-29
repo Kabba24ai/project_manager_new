@@ -244,7 +244,20 @@
                 </div>
 
                 <!-- Comments Section -->
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6" x-data="{ 
+                    previewUrl: null, 
+                    previewType: null, 
+                    previewName: null,
+                    closePreview() {
+                        // Pause and reset video if it's playing
+                        const videoElement = this.$refs.previewVideo;
+                        if (videoElement) {
+                            videoElement.pause();
+                            videoElement.currentTime = 0;
+                        }
+                        this.previewUrl = null;
+                    }
+                }">
                     <div class="flex items-center justify-between mb-6">
                         <h2 class="text-lg font-semibold text-gray-900">
                             Activity & Comments ({{ $task->comments->count() }})
@@ -291,7 +304,79 @@
                                     <!-- View Mode -->
                                     <div x-show="!isEditing">
                                         <p class="text-sm text-gray-700 mb-2">{{ $comment->content }}</p>
-                                        <div class="flex justify-end">
+                                        
+                                        @if($comment->attachments->count() > 0)
+                                        <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                            @foreach($comment->attachments as $attachment)
+                                            <div class="group relative bg-gray-50 rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                                                <!-- Thumbnail/Preview Area -->
+                                                <div class="aspect-square bg-gray-100 flex items-center justify-center relative">
+                                                    @if($attachment->isImage())
+                                                        <!-- Image Thumbnail -->
+                                                        <img 
+                                                            src="{{ route('attachments.thumbnail', $attachment->id) }}" 
+                                                            alt="{{ $attachment->original_filename }}"
+                                                            class="w-full h-full object-cover cursor-pointer"
+                                                            @click="previewUrl = '{{ route('attachments.preview', $attachment->id) }}'; previewType = 'image'; previewName = '{{ $attachment->original_filename }}'"
+                                                        >
+                                                        <div 
+                                                            class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer"
+                                                            @click="previewUrl = '{{ route('attachments.preview', $attachment->id) }}'; previewType = 'image'; previewName = '{{ $attachment->original_filename }}'"
+                                                        >
+                                                            <i class="fas fa-search-plus text-white text-2xl pointer-events-none"></i>
+                                                        </div>
+                                                    @elseif($attachment->isVideo())
+                                                        <!-- Video Thumbnail -->
+                                                        <div 
+                                                            class="relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800 cursor-pointer group-hover:from-gray-800 group-hover:to-gray-700 transition-all overflow-hidden"
+                                                            @click="previewUrl = '{{ route('attachments.preview', $attachment->id) }}'; previewType = 'video'; previewName = '{{ $attachment->original_filename }}'"
+                                                        >
+                                                            <div class="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-40 z-10">
+                                                                <i class="fas fa-play-circle text-white text-5xl mb-2 group-hover:scale-110 transition-transform drop-shadow-lg"></i>
+                                                                <span class="text-white text-xs font-medium drop-shadow">Click to play</span>
+                                                            </div>
+                                                        </div>
+                                                    @elseif($attachment->isPdf())
+                                                        <!-- PDF Icon -->
+                                                        <div class="flex flex-col items-center justify-center text-red-600">
+                                                            <i class="fas fa-file-pdf text-4xl mb-2"></i>
+                                                            <span class="text-xs">PDF</span>
+                                                        </div>
+                                                    @else
+                                                        <!-- Generic File Icon -->
+                                                        <div class="flex flex-col items-center justify-center text-gray-400">
+                                                            <i class="fas fa-file text-4xl mb-2"></i>
+                                                            <span class="text-xs">FILE</span>
+                                                        </div>
+                                                    @endif
+                                                </div>
+
+                                                <!-- File Info -->
+                                                <div class="p-2">
+                                                    <div class="text-xs font-medium text-gray-900 truncate" title="{{ $attachment->original_filename }}">
+                                                        {{ $attachment->original_filename }}
+                                                    </div>
+                                                    <div class="text-xs text-gray-500">
+                                                        {{ $attachment->size > 1048576 ? number_format($attachment->size / 1048576, 2) . ' MB' : number_format($attachment->size / 1024, 1) . ' KB' }}
+                                                    </div>
+                                                </div>
+
+                                                <!-- Action Buttons -->
+                                                <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <a 
+                                                        href="{{ route('attachments.download', $attachment->id) }}" 
+                                                        class="px-2 py-1 bg-white rounded shadow-sm text-xs text-gray-700 hover:bg-gray-100"
+                                                        title="Download"
+                                                    >
+                                                        <i class="fas fa-download"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            @endforeach
+                                        </div>
+                                        @endif
+                                        
+                                        <div class="flex justify-end mt-2">
                                         <span class="text-xs text-gray-500">{{ $comment->created_at->diffForHumans() }}</span>
                                         </div>
                                     </div>
@@ -348,6 +433,104 @@
                                         class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                                         rows="3"
                                     ></textarea>
+                                    
+                                    <!-- File Attachments Section -->
+                                    <div class="mt-4 space-y-4">
+                                        <!-- Upload Buttons -->
+                                        <div class="flex flex-wrap gap-3">
+                                            <button
+                                                type="button"
+                                                @click="$refs.commentFileInput.click()"
+                                                class="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                                            >
+                                                <i class="fas fa-upload w-4 h-4"></i>
+                                                <span>Upload Files</span>
+                                            </button>
+                                            
+                                            <div class="flex items-center space-x-4 text-sm text-gray-500">
+                                                <div class="flex items-center space-x-1">
+                                                    <span class="text-lg">🖼️</span>
+                                                    <span>Photos</span>
+                                                </div>
+                                                <div class="flex items-center space-x-1">
+                                                    <span class="text-lg">🎥</span>
+                                                    <span>Videos</span>
+                                                </div>
+                                                <div class="flex items-center space-x-1">
+                                                    <span class="text-lg">📄</span>
+                                                    <span>PDFs</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <input
+                                            x-ref="commentFileInput"
+                                            type="file"
+                                            multiple
+                                            accept="image/*,video/*,.pdf"
+                                            @change="handleCommentFileUpload($event)"
+                                            class="hidden"
+                                        />
+                                        
+                                        <p class="text-sm text-gray-500">
+                                            <strong>Supported formats:</strong> JPG, PNG, GIF, WebP, MP4, MOV, AVI, WebM, PDF<br />
+                                            <strong>Maximum size:</strong> 100MB per file • <strong>Multiple files:</strong> Supported
+                                        </p>
+
+                                        <!-- File List -->
+                                        <template x-if="commentAttachments.length > 0">
+                                            <div class="space-y-3">
+                                                <h3 class="text-sm font-medium text-gray-900">
+                                                    Attached Files (<span x-text="commentAttachments.length"></span>)
+                                                </h3>
+                                                <div class="space-y-2">
+                                                    <template x-for="(file, index) in commentAttachments" :key="index">
+                                                        <div class="p-3 bg-gray-50 rounded-lg border" :class="file.error ? 'border-red-300 bg-red-50' : 'border-gray-200'">
+                                                            <div class="flex items-center justify-between mb-2">
+                                                                <div class="flex items-center space-x-3 flex-1 min-w-0">
+                                                                    <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0" :class="getCommentFileTypeColor(file)">
+                                                                        <span x-html="getCommentFileIcon(file)"></span>
+                                                                    </div>
+                                                                    <div class="flex-1 min-w-0">
+                                                                        <p class="text-sm font-medium text-gray-900 truncate" x-text="file.name"></p>
+                                                                        <div class="flex items-center space-x-3 text-xs text-gray-500">
+                                                                            <span x-text="(file.size / 1024 / 1024).toFixed(2) + ' MB'"></span>
+                                                                            <span x-text="getCommentFileType(file)"></span>
+                                                                            <span x-show="file.uploaded" class="text-green-600 font-medium">✓ Uploaded</span>
+                                                                            <span x-show="file.error" class="text-red-600 font-medium">✗ Failed</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    @click="removeCommentAttachment(index)"
+                                                                    class="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
+                                                                    title="Remove file"
+                                                                    :disabled="file.uploading"
+                                                                >
+                                                                    <i class="fas fa-times text-2xl"></i>
+                                                                </button>
+                                                            </div>
+                                                            
+                                                            <!-- Progress Bar -->
+                                                            <div x-show="file.uploading" class="mt-2">
+                                                                <div class="flex items-center justify-between mb-1">
+                                                                    <span class="text-xs text-gray-600">Uploading...</span>
+                                                                    <span class="text-xs font-semibold text-blue-600" x-text="file.progress + '%'"></span>
+                                                                </div>
+                                                                <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                                                    <div 
+                                                                        class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300"
+                                                                        :style="'width: ' + file.progress + '%'"
+                                                                    ></div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
                                 
                                 <div class="flex items-center justify-between mt-4">
                                     <a 
@@ -362,11 +545,11 @@
                                         <button
                                             type="button"
                                             @click="addComment"
-                                            :disabled="!newComment.trim() || isSavingComment"
+                                            :disabled="!newComment.trim() || isSavingComment || commentAttachments.some(f => f.uploading)"
                                             class="flex items-center space-x-2 px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <i class="fas" :class="isSavingComment ? 'fa-spinner fa-spin' : 'fa-comment'"></i>
-                                            <span x-text="isSavingComment ? 'Saving...' : 'Add Comment'"></span>
+                                            <span x-text="isSavingComment ? 'Saving...' : (commentAttachments.some(f => f.uploading) ? 'Uploading files...' : 'Add Comment')"></span>
                                         </button>
                                         
                                         <button
@@ -381,6 +564,89 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Preview Modal for Comment Attachments -->
+                    <div 
+                        x-show="previewUrl" 
+                        x-cloak
+                        @keydown.escape.window="closePreview()"
+                        class="fixed inset-0 bg-black/95 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+                        @click.self="closePreview()"
+                        x-transition:enter="transition ease-out duration-300"
+                        x-transition:enter-start="opacity-0"
+                        x-transition:enter-end="opacity-100"
+                        x-transition:leave="transition ease-in duration-200"
+                        x-transition:leave-start="opacity-100"
+                        x-transition:leave-end="opacity-0"
+                    >
+                        <div class="relative w-full max-w-7xl mx-auto">
+                            <!-- Header Bar -->
+                            <div class="flex items-center  mb-4 px-2">
+                                <div class="text-white text-center mb-4 space-x-2 w-full">
+                                    <i class="fas fa-file-alt text-white/80"></i>
+                                    <span class="text-white font-medium" x-text="previewName"></span>
+                                </div>
+                                
+                                <div class="flex items-center space-x-2">
+                                    
+                                    <button 
+                                        @click="closePreview()"
+                                        class="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
+                                        title="Close (ESC)"
+                                    >
+                                        <i class="fas fa-times text-2xl"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Preview Content -->
+                            <div class="relative bg-gray-900/50 rounded-xl overflow-hidden shadow-2xl"
+                                 x-transition:enter="transition ease-out duration-300 delay-100"
+                                 x-transition:enter-start="opacity-0 scale-95"
+                                 x-transition:enter-end="opacity-100 scale-100">
+                                <!-- Image Preview -->
+                                <template x-if="previewType === 'image'">
+                                    <div class="flex items-center justify-center min-h-[300px] max-h-[85vh] p-4">
+                                        <img 
+                                            :src="previewUrl" 
+                                            :alt="previewName"
+                                            class="max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-2xl"
+                                            @click.stop
+                                        >
+                                    </div>
+                                </template>
+                                
+                                <!-- Video Preview -->
+                                <template x-if="previewType === 'video'">
+                                    <div class="flex items-center justify-center min-h-[300px] max-h-[85vh] bg-black">
+                                        <video 
+                                            x-ref="previewVideo"
+                                            :src="previewUrl" 
+                                            controls
+                                            autoplay
+                                            class="max-w-full max-h-[85vh] w-auto h-auto rounded-lg"
+                                            @click.stop
+                                        >
+                                            Your browser does not support the video tag.
+                                        </video>
+                                    </div>
+                                </template>
+                                
+                                <!-- PDF Preview -->
+                                <template x-if="previewType === 'pdf'">
+                                    <div class="flex items-center justify-center min-h-[300px] max-h-[85vh] bg-gray-100">
+                                        <iframe 
+                                            :src="previewUrl" 
+                                            class="w-full h-[85vh] border-0"
+                                            @click.stop
+                                        ></iframe>
+                                    </div>
+                                </template>
+                            </div>
+                            
+                           
                         </div>
                     </div>
                 </div>
@@ -741,6 +1007,7 @@ function taskChangesManager() {
         originalStatus: '{{ $task->task_status }}',
         newComment: '',
         isSavingComment: false,
+        commentAttachments: [],
         
         get hasChanges() {
             return this.stagedStatus !== this.originalStatus;
@@ -750,12 +1017,135 @@ function taskChangesManager() {
             this.stagedStatus = status;
         },
         
+        handleCommentFileUpload(event) {
+            const files = Array.from(event.target.files);
+            const maxSize = 100 * 1024 * 1024; // 100MB
+            
+            for (const file of files) {
+                if (file.size > maxSize) {
+                    alert(`File ${file.name} is too large. Maximum size is 100MB.`);
+                    continue;
+                }
+                
+                // Add file to commentAttachments with uploading status
+                const fileObj = {
+                    file: file,
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    uploading: true,
+                    progress: 0,
+                    uploaded: false,
+                    error: false,
+                    tempId: null
+                };
+                this.commentAttachments.push(fileObj);
+                const fileIndex = this.commentAttachments.length - 1;
+                
+                // Upload file immediately
+                this.uploadCommentFile(file, fileIndex);
+            }
+            
+            // Reset file input
+            event.target.value = '';
+        },
+        
+        uploadCommentFile(file, fileIndex) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+            
+            const xhr = new XMLHttpRequest();
+            
+            // Track upload progress
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    this.commentAttachments[fileIndex].progress = percentComplete;
+                }
+            });
+            
+            // Handle completion
+            xhr.addEventListener('load', () => {
+                if (xhr.status === 200) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        this.commentAttachments[fileIndex].uploading = false;
+                        this.commentAttachments[fileIndex].uploaded = true;
+                        this.commentAttachments[fileIndex].tempId = response.tempId;
+                    } catch (error) {
+                        this.commentAttachments[fileIndex].uploading = false;
+                        this.commentAttachments[fileIndex].error = true;
+                    }
+                } else {
+                    this.commentAttachments[fileIndex].uploading = false;
+                    this.commentAttachments[fileIndex].error = true;
+                }
+            });
+            
+            // Handle errors
+            xhr.addEventListener('error', () => {
+                console.error('Upload error');
+                this.commentAttachments[fileIndex].uploading = false;
+                this.commentAttachments[fileIndex].error = true;
+            });
+            
+            // Send request
+            xhr.open('POST', '/api/upload-temp-file', true);
+            xhr.send(formData);
+        },
+        
+        removeCommentAttachment(index) {
+            const file = this.commentAttachments[index];
+            this.commentAttachments.splice(index, 1);
+        },
+        
+        getCommentFileTypeColor(file) {
+            if (file.type.startsWith('image/')) return 'bg-green-100 text-green-600';
+            if (file.type.startsWith('video/')) return 'bg-purple-100 text-purple-600';
+            if (file.type === 'application/pdf') return 'bg-red-100 text-red-600';
+            return 'bg-gray-100 text-gray-600';
+        },
+        
+        getCommentFileIcon(file) {
+            if (file.type.startsWith('image/')) return '🖼️';
+            if (file.type.startsWith('video/')) return '🎥';
+            if (file.type === 'application/pdf') return '📄';
+            return '📎';
+        },
+        
+        getCommentFileType(file) {
+            if (file.type.startsWith('image/')) return 'Photo';
+            if (file.type.startsWith('video/')) return 'Video';
+            if (file.type === 'application/pdf') return 'PDF';
+            return 'File';
+        },
+        
         async addComment() {
             if (!this.newComment.trim()) return;
+            
+            // Check if any files are still uploading
+            const stillUploading = this.commentAttachments.some(file => file.uploading);
+            if (stillUploading) {
+                alert('Please wait for all files to finish uploading.');
+                return;
+            }
+            
+            // Check if any files failed to upload
+            const failedUploads = this.commentAttachments.some(file => file.error);
+            if (failedUploads) {
+                alert('Some files failed to upload. Please remove them and try again.');
+                return;
+            }
             
             this.isSavingComment = true;
             
             try {
+                // Collect uploaded file IDs
+                const uploadedFileIds = this.commentAttachments
+                    .filter(file => file.uploaded && file.tempId)
+                    .map(file => file.tempId);
+
                 const response = await fetch('{{ route('comments.store', $task->id) }}', {
                     method: 'POST',
                     headers: {
@@ -764,19 +1154,24 @@ function taskChangesManager() {
                         'Accept': 'application/json'
                     },
                     body: JSON.stringify({
-                        content: this.newComment.trim()
+                        content: this.newComment.trim(),
+                        uploaded_files: uploadedFileIds
                     })
                 });
                 
                 if (response.ok) {
+                    const responseData = await response.json();
+                    console.log('Comment saved successfully:', responseData);
                     // Reload the page to show the new comment
                     window.location.reload();
                 } else {
-                    throw new Error('Failed to save comment');
+                    const errorData = await response.text();
+                    console.error('Failed to save comment:', response.status, errorData);
+                    throw new Error('Failed to save comment: ' + response.status);
                 }
             } catch (error) {
                 console.error('Error saving comment:', error);
-                alert('Failed to save comment. Please try again.');
+                alert('Failed to save comment. Please try again. Check console for details.');
                 this.isSavingComment = false;
             }
         },

@@ -397,4 +397,59 @@ class ProjectController extends Controller
         return redirect()->route('projects.index')
             ->with('success', 'Project deleted successfully.');
     }
+
+    public function manageLists(Project $project)
+    {
+        $project->load([
+            'taskLists' => function($query) {
+                $query->orderBy('order');
+            },
+            'teamMembers',
+            'projectManager',
+            'createdBy'
+        ]);
+
+        return view('projects.manage-lists', compact('project'));
+    }
+
+    public function updateListsOrder(Request $request, Project $project)
+    {
+        try {
+            \Log::info('Update lists order request received', [
+                'project_id' => $project->id,
+                'task_lists' => $request->task_lists
+            ]);
+
+            $request->validate([
+                'task_lists' => 'required|array',
+                'task_lists.*.id' => 'required|exists:task_lists,id',
+                'task_lists.*.order' => 'required|integer'
+            ]);
+
+            foreach ($request->task_lists as $index => $listData) {
+                \App\Models\TaskList::where('id', $listData['id'])
+                    ->update([
+                        'order' => $listData['order']
+                    ]);
+                    
+                \Log::info('Updated task list', [
+                    'id' => $listData['id'],
+                    'order' => $listData['order']
+                ]);
+            }
+
+            \Log::info('Task lists order updated successfully');
+
+            return redirect()->route('projects.show', $project->id)
+                ->with('success', 'Task lists order updated successfully.');
+        } catch (\Exception $e) {
+            \Log::error('Error updating task lists order', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()
+                ->with('error', 'Failed to update task lists order: ' . $e->getMessage());
+        }
+    }
 }

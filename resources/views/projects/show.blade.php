@@ -76,6 +76,10 @@
                                 <i class="fas fa-edit w-4"></i>
                                 <span>Edit Project</span>
                             </a>
+                            <a href="{{ route('projects.manage-lists', $project->id) }}" class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                                <i class="fas fa-list w-4"></i>
+                                <span>Manage Lists</span>
+                            </a>
                             @endif
                             
                             @if($canDeleteProject)

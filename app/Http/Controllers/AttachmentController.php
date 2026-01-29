@@ -103,6 +103,12 @@ class AttachmentController extends Controller
 
     protected function hasAccess(Attachment $attachment): bool
     {
+        // For comment attachments, allow access to any authenticated user
+        // since they can already view the task and comments
+        if ($attachment->attachable instanceof Comment) {
+            return Auth::check();
+        }
+
         $project = null;
 
         if ($attachment->attachable instanceof Project) {
@@ -110,9 +116,6 @@ class AttachmentController extends Controller
         } elseif ($attachment->attachable instanceof Task) {
             $task = $attachment->attachable->loadMissing('project.teamMembers');
             $project = $task->project;
-        } elseif ($attachment->attachable instanceof Comment) {
-            $comment = $attachment->attachable->loadMissing('task.project.teamMembers');
-            $project = $comment->task?->project;
         }
 
         if (!$project) {

@@ -34,6 +34,8 @@ Route::middleware('auth')->group(function () {
 
     // Projects
     Route::resource('projects', ProjectController::class);
+    Route::get('/projects/{project}/manage-lists', [ProjectController::class, 'manageLists'])->name('projects.manage-lists');
+    Route::post('/projects/{project}/update-lists-order', [ProjectController::class, 'updateListsOrder'])->name('projects.update-lists-order');
 
     // Task Lists
     Route::get('/projects/{project}/task-lists', [TaskListController::class, 'index'])->name('task-lists.index');

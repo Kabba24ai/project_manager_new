@@ -35,11 +35,7 @@
                     </template>
 
                     <!-- Task Count Badge -->
-                    <template x-if="member.taskCount > 0">
-                        <div class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-md">
-                            <span x-text="member.taskCount > 9 ? '9+' : member.taskCount"></span>
-                        </div>
-                    </template>
+                   
                 </div>
 
                 <!-- Member Info -->

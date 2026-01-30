@@ -8,7 +8,7 @@
     <header class="bg-white shadow-sm border-b border-gray-200">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
-                <h1 class="text-xl font-semibold text-gray-900">Proj Mgr</h1>
+                <h1 class="text-xl font-semibold text-gray-900">Project Manager</h1>
                 <div class="flex items-center space-x-2">
                     <i class="fas fa-user text-gray-400"></i>
                     <span class="text-sm text-gray-700">{{ auth()->user()->name }}</span>

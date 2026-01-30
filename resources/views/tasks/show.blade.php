@@ -1,6 +1,6 @@
 @extends('layouts.dashboard')
 
-@section('title', $task->title . ' - Task Master K')
+@section('title',  'Proj Mgr - ' . $task->title)
 
 @section('content')
 @php

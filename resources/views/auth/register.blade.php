@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Register - Task Master K')
+@section('title', 'Register - Proj Mgr')
 
 @section('content')
 <div class="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center justify-center p-4">
@@ -11,7 +11,7 @@
                 <span class="text-white font-bold text-xl">TM</span>
             </div>
             <h1 class="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
-            <p class="text-gray-600">Join Task Master K and start managing projects</p>
+            <p class="text-gray-600">Join Proj Mgr and start managing projects</p>
         </div>
 
         <!-- Register Form -->
@@ -204,7 +204,7 @@
         <!-- Footer -->
         <div class="text-center mt-8">
             <p class="text-gray-500 text-sm">
-                © {{ date('Y') }} Task Master K. All rights reserved.
+                © {{ date('Y') }} Proj Mgr. All rights reserved.
             </p>
         </div>
     </div>

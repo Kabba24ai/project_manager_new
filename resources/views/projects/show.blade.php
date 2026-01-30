@@ -1,6 +1,6 @@
 @extends('layouts.dashboard')
 
-@section('title', $project->name . ' - Task Master K')
+@section('title', 'Proj Mgr - Task' )
 
 @section('content')
 <div class="min-h-screen bg-gray-50">

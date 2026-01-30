@@ -1,6 +1,6 @@
 @extends('layouts.dashboard')
 
-@section('title', 'Add New Task - Task Master K')
+@section('title', 'Proj Mgr - Add New Task')
 
 @section('content')
 <div class="min-h-screen bg-gray-50" x-data="taskForm()">

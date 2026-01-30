@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Task Master K - Project Management')</title>
+    <title>@yield('title', 'Proj Mgr - Project Management')</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -25,7 +25,7 @@
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center">
                     <a href="{{ route('dashboard') }}" class="text-2xl font-bold text-indigo-600">
-                        <i class="fas fa-tasks"></i> Task Master K
+                        <i class="fas fa-tasks"></i> Proj Mgr
                     </a>
                 </div>
                 

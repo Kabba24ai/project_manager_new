@@ -1,6 +1,6 @@
 @extends('layouts.dashboard')
 
-@section('title', 'Task Description Templates - Task Master K')
+@section('title', 'Proj Mgr - Task Description Templates')
 
 @section('content')
 <div class="min-h-screen bg-gray-50" x-data="{ 

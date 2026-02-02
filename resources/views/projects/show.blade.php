@@ -830,24 +830,34 @@ function inRange(dateValue, fromValue, toValue) {
 }
 
 function updateTaskListCounts() {
-    const rows = Array.from(document.querySelectorAll('.project-task-row'));
+    // Only count rows from list view to avoid duplicates (tasks appear in both expanded and list sections)
+    const rows = Array.from(document.querySelectorAll('#list-view-container .project-task-row'));
     const countsByList = {};
     
+    // Initialize all task list IDs with 0 count
     rows.forEach(row => {
-        // Only count rows that are actually visible (not hidden by display:none or Alpine x-show)
-        if (row.style.display === 'none' || row.offsetParent === null) return;
+        const listId = row.dataset.tasklistId;
+        if (listId && !countsByList[listId]) {
+            countsByList[listId] = 0;
+        }
+    });
+    
+    // Count only visible rows (not hidden by filters)
+    rows.forEach(row => {
+        // Only check if row is hidden by display:none (set by filters)
+        // Don't check offsetParent as rows might be in hidden Alpine sections
+        if (row.style.display === 'none') return;
         
         const listId = row.dataset.tasklistId;
         if (!listId) return;
         
-        if (!countsByList[listId]) countsByList[listId] = 0;
         countsByList[listId] += 1;
     });
 
+    // Update all count elements
     Object.keys(countsByList).forEach(listId => {
-        // Only update list view counts, not grid view counts
-        // Grid view should always show total count
-        const els = document.querySelectorAll(`[data-tasklist-count="${listId}"]:not([data-count-type="grid"])`);
+        // Update all count elements (including grid view)
+        const els = document.querySelectorAll(`[data-tasklist-count="${listId}"]`);
         if (els.length === 0) return;
         const visible = countsByList[listId];
         els.forEach(el => {

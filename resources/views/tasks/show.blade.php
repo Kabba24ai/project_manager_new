@@ -1256,8 +1256,8 @@ function taskChangesManager() {
                     });
                 }
                 
-                // Redirect to project page
-                window.location.href = '{{ route('projects.show', $task->project_id) }}';
+                // Redirect to dashboard page
+                window.location.href = '{{ route('dashboard') }}';
             } catch (error) {
                 console.error('Error saving changes:', error);
                 alert('Failed to save changes. Please try again.');

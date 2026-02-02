@@ -238,12 +238,14 @@
                     this.expandedTaskListId = null;
                 } else {
                     this.expandedTaskListId = taskListId;
-                    // Scroll to the expanded task list section
+                    // Scroll to the expanded task list section and apply filters
                     setTimeout(() => {
                         const expandedSection = document.getElementById('expanded-task-lists-section');
                         if (expandedSection) {
                             expandedSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         }
+                        // Apply filters to newly visible tasks
+                        filterProjectTasks();
                     }, 100);
                 }
             }
@@ -857,10 +859,19 @@ function updateTaskListCounts() {
 function syncApprovedCheckboxes(taskListId) {
     const listCheckbox = document.getElementById(`show_approved_tasks_${taskListId}`);
     const gridCheckbox = document.getElementById(`show_approved_tasks_grid_${taskListId}`);
-    if (listCheckbox && gridCheckbox) {
-        gridCheckbox.checked = listCheckbox.checked;
-    } else if (gridCheckbox && listCheckbox) {
-        listCheckbox.checked = gridCheckbox.checked;
+    const expandedCheckbox = document.getElementById(`show_approved_tasks_expanded_${taskListId}`);
+    
+    // Sync all checkboxes to match whichever one was changed
+    const checkboxes = [listCheckbox, gridCheckbox, expandedCheckbox].filter(cb => cb !== null);
+    if (checkboxes.length > 0) {
+        const changedCheckbox = checkboxes.find(cb => cb === event?.target);
+        if (changedCheckbox) {
+            checkboxes.forEach(cb => {
+                if (cb !== changedCheckbox) {
+                    cb.checked = changedCheckbox.checked;
+                }
+            });
+        }
     }
 }
 
@@ -887,8 +898,24 @@ function filterProjectTasks() {
         const status = row.dataset.taskStatus || '';
         const taskListId = row.dataset.tasklistId || '';
         
-        // Check if approved tasks should be shown for this task list (check both list view and expanded view checkboxes)
-        const showApprovedCheckbox = document.getElementById(`show_approved_tasks_${taskListId}`) || document.getElementById(`show_approved_tasks_expanded_${taskListId}`);
+        // Check if approved tasks should be shown for this task list
+        // Only check checkboxes that are currently visible (not hidden by Alpine x-show)
+        const checkboxIds = [
+            `show_approved_tasks_${taskListId}`,
+            `show_approved_tasks_expanded_${taskListId}`,
+            `show_approved_tasks_grid_${taskListId}`
+        ];
+        
+        let showApprovedCheckbox = null;
+        for (const id of checkboxIds) {
+            const checkbox = document.getElementById(id);
+            // Check if checkbox exists and is visible (offsetParent !== null means it's visible)
+            if (checkbox && checkbox.offsetParent !== null) {
+                showApprovedCheckbox = checkbox;
+                break;
+            }
+        }
+        
         const showApproved = showApprovedCheckbox ? showApprovedCheckbox.checked : false;
 
         const matchesName = !q || title.includes(q);

@@ -328,7 +328,7 @@
                                         >
                                             <div class="font-medium text-gray-900" x-text="customer.name"></div>
                                             <div class="text-sm text-gray-500">
-                                                <span x-text="customer.email"></span> • <span x-text="customer.phone"></span>
+                                                <span x-text="customer.email"></span> • <span x-text="formatPhone(customer.phone)"></span>
                                             </div>
                                         </button>
                                     </template>
@@ -839,7 +839,7 @@
                                     </div>
                                     <div>
                                         <p class="font-medium text-gray-700">Phone:</p>
-                                        <p class="text-gray-900" x-text="selectedServiceCallOrder?.customer?.phone || 'N/A'"></p>
+                                        <p class="text-gray-900" x-text="formatPhone(selectedServiceCallOrder?.customer?.phone)"></p>
                                     </div>
                                     <div>
                                         <p class="font-medium text-gray-700">Company:</p>
@@ -1239,6 +1239,19 @@ function taskForm() {
             
             // If title doesn't match, return empty to show "Select equipment"
             return '';
+        },
+        
+        formatPhone(phone) {
+            if (!phone) return 'N/A';
+            // Remove all non-digit characters
+            const cleaned = ('' + phone).replace(/\D/g, '');
+            // Format as US phone number (XXX) XXX-XXXX
+            const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
+            if (match) {
+                return '(' + match[1] + ') ' + match[2] + '-' + match[3];
+            }
+            // Return original if it doesn't match expected format
+            return phone;
         },
         
         getFilteredCustomers() {

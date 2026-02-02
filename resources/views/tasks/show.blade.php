@@ -732,7 +732,7 @@
                                             </div>
                                             <div>
                                                 <p class="font-medium text-gray-700">Phone:</p>
-                                                <p class="text-gray-900" x-text="orderDetails?.customer?.phone || 'N/A'"></p>
+                                                <p class="text-gray-900" x-text="formatPhone(orderDetails?.customer?.phone)"></p>
                                             </div>
                                             <div>
                                                 <p class="font-medium text-gray-700">Company:</p>
@@ -1333,6 +1333,19 @@ function serviceCallInfo() {
         loading: false,
         orderDetails: null,
         error: null,
+
+        formatPhone(phone) {
+            if (!phone) return 'N/A';
+            // Remove all non-digit characters
+            const cleaned = ('' + phone).replace(/\D/g, '');
+            // Format as US phone number (XXX) XXX-XXXX
+            const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
+            if (match) {
+                return '(' + match[1] + ') ' + match[2] + '-' + match[3];
+            }
+            // Return original if it doesn't match expected format
+            return phone;
+        },
 
         async loadServiceCallOrder() {
             const orderId = '{{ $task->serviceCall->order_id ?? '' }}';

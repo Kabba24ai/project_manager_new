@@ -610,7 +610,7 @@
                                  x-transition:enter-end="opacity-100 scale-100">
                                 <!-- Image Preview -->
                                 <template x-if="previewType === 'image'">
-                                    <div class="flex items-center justify-center min-h-[300px] max-h-[85vh] p-4">
+                                    <div class="flex  min-h-[300px] max-h-[85vh] p-4">
                                         <img 
                                             :src="previewUrl" 
                                             :alt="previewName"

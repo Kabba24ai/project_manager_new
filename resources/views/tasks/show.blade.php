@@ -232,11 +232,13 @@
                                 type="button" 
                                 @click="setStatus('{{ $status['value'] }}')" 
                                 :class="{'{{ $status['activeColor'] }}': stagedStatus === '{{ $status['value'] }}', 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50': stagedStatus !== '{{ $status['value'] }}'}"
-                                class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors border-2 whitespace-nowrap"
+                                class="inline-flex flex-col items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors border-2"
                             >
-                                <i class="fas fa-{{ $status['icon'] }} mr-2"></i>
-                                {{ $status['label'] }}
-                                <span x-show="stagedStatus === '{{ $status['value'] }}' && stagedStatus !== '{{ $task->task_status }}'" class="ml-2 text-xs">(pending)</span>
+                                <div class="flex items-center whitespace-nowrap">
+                                    <i class="fas fa-{{ $status['icon'] }} mr-2"></i>
+                                    {{ $status['label'] }}
+                                </div>
+                                <span x-show="stagedStatus === '{{ $status['value'] }}' && stagedStatus !== '{{ $task->task_status }}'" class="mt-1 text-xs">(pending)</span>
                             </button>
                         @endforeach
                     </div>

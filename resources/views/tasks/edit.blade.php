@@ -3,7 +3,7 @@
 @section('title', 'Proj Mgr - Edit Task')
 
 @section('content')
-<div class="min-h-screen bg-gray-50" x-data="taskForm()">
+<div class="min-h-screen bg-gray-50" x-data="taskForm">
     <!-- Header -->
     <div class="bg-white border-b border-gray-200">
         <div class="max-w-6xl mx-auto px-6 py-4">
@@ -1045,8 +1045,8 @@
 
 @push('scripts')
 <script>
-function taskForm() {
-    return {
+document.addEventListener('alpine:init', () => {
+    Alpine.data('taskForm', () => ({
         taskType: '{{ old('task_type', $task->task_type) }}',
         priority: '{{ old('priority', $task->priority ?? 'medium') }}',
         taskListId: '{{ old('task_list_id', $task->task_list_id) }}',
@@ -1799,8 +1799,8 @@ function taskForm() {
             xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('meta[name="csrf-token"]').content);
             xhr.send(formData);
         }
-    }
-}
+    }));
+});
 </script>
 @endpush
 @endsection

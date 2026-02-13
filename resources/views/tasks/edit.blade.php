@@ -432,7 +432,6 @@
                                     <option value="approved" {{ old('task_status', $task->task_status) == 'approved' ? 'selected' : '' }}>Approved</option>
                                     @endif
                                     <option value="unapproved" {{ old('task_status', $task->task_status) == 'unapproved' ? 'selected' : '' }}>Unapproved</option>
-                                    <option value="deployed" {{ old('task_status', $task->task_status) == 'deployed' ? 'selected' : '' }}>Deployed</option>
                                 </select>
                             </div>
 

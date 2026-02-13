@@ -545,10 +545,17 @@
                                                             <span>{{ $task->assignedUser->name }}</span>
                                                         </div>
                                                         @else
+                                                        @if($task->created_by === Auth::id())
                                                         <a href="{{ route('tasks.edit', $task->id) }}" onclick="event.stopPropagation()" class="flex items-center space-x-1 text-gray-500 hover:text-blue-600 transition-colors">
                                                             <i class="fas fa-users w-4 h-4"></i>
                                                             <span class="underline">Unassigned</span>
                                                         </a>
+                                                        @else
+                                                        <div class="flex items-center space-x-1 text-gray-400 cursor-not-allowed">
+                                                            <i class="fas fa-users w-4 h-4"></i>
+                                                            <span>Unassigned</span>
+                                                        </div>
+                                                        @endif
                                                         @endif
                                                         
                                                         @if($task->due_date)
@@ -580,7 +587,7 @@
                                                 <a href="{{ route('tasks.show', $task->id) }}" class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="View Task">
                                                     <i class="fas fa-eye w-4 h-4"></i>
                                                 </a>
-                                                @if($canEdit)
+                                                @if($canEdit && $task->created_by === Auth::id())
                                                 <a href="{{ route('tasks.edit', $task->id) }}" class="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="Edit Task">
                                                     <i class="fas fa-edit w-4 h-4"></i>
                                                 </a>
@@ -769,10 +776,17 @@
                                                 <span>{{ $task->assignedUser->name }}</span>
                                             </div>
                                             @else
+                                            @if($task->created_by === Auth::id())
                                             <a href="{{ route('tasks.edit', $task->id) }}" onclick="event.stopPropagation()" class="flex items-center space-x-1 text-gray-500 hover:text-blue-600 transition-colors">
                                                 <i class="fas fa-users w-4 h-4"></i>
                                                 <span class="underline">Unassigned</span>
                                             </a>
+                                            @else
+                                            <div class="flex items-center space-x-1 text-gray-400 cursor-not-allowed">
+                                                <i class="fas fa-users w-4 h-4"></i>
+                                                <span>Unassigned</span>
+                                            </div>
+                                            @endif
                                             @endif
                                             
                                             @if($task->due_date)
@@ -804,7 +818,7 @@
                                     <a href="{{ route('tasks.show', $task->id) }}" class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="View Task">
                                         <i class="fas fa-eye w-4 h-4"></i>
                                     </a>
-                                    @if($canEdit)
+                                    @if($canEdit && $task->created_by === Auth::id())
                                     <a href="{{ route('tasks.edit', $task->id) }}" class="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="Edit Task">
                                         <i class="fas fa-edit w-4 h-4"></i>
                                     </a>

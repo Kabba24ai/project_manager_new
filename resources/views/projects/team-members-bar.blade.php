@@ -7,7 +7,7 @@
     <!-- Team Members Grid -->
     <div x-show="!loading" class="flex flex-wrap gap-6">
         <template x-for="member in teamMembers" :key="member.id">
-            <div @click="handleAvatarClick(member)" class="flex flex-col items-center space-y-2 cursor-pointer group">
+            <div x-show="member.taskCount > 0" @click="handleAvatarClick(member)" class="flex flex-col items-center space-y-2 cursor-pointer group">
                 <div class="relative">
                     <!-- Avatar Image or Initials -->
                     <template x-if="member.avatar_url">

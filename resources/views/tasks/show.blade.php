@@ -1012,7 +1012,13 @@ function taskChangesManager() {
         commentAttachments: [],
         
         get hasChanges() {
-            return this.stagedStatus !== this.originalStatus;
+            const hasStatusChange = this.stagedStatus !== this.originalStatus;
+            const hasUnsavedComment = this.newComment.trim() || this.commentAttachments.length > 0;
+            return hasStatusChange || hasUnsavedComment;
+        },
+        
+        hasUnsavedComment() {
+            return this.newComment.trim() || this.commentAttachments.length > 0;
         },
         
         setStatus(status) {
@@ -1242,6 +1248,52 @@ function taskChangesManager() {
                 const saveBtn = event.target;
                 saveBtn.disabled = true;
                 saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Saving...</span>';
+                
+                // Save comment first if there's an unsaved comment
+                if (this.hasUnsavedComment()) {
+                    // Check if any files are still uploading
+                    const stillUploading = this.commentAttachments.some(file => file.uploading);
+                    if (stillUploading) {
+                        alert('Please wait for all files to finish uploading.');
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '<i class="fas fa-save"></i> <span>Save & Exit</span>';
+                        return;
+                    }
+                    
+                    // Check if any files failed to upload
+                    const failedUploads = this.commentAttachments.some(file => file.error);
+                    if (failedUploads) {
+                        alert('Some files failed to upload. Please remove them and try again.');
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '<i class="fas fa-save"></i> <span>Save & Exit</span>';
+                        return;
+                    }
+                    
+                    // Only save comment if there's actual content (text or files)
+                    if (this.newComment.trim() || this.commentAttachments.some(file => file.uploaded && file.tempId)) {
+                        // Collect uploaded file IDs
+                        const uploadedFileIds = this.commentAttachments
+                            .filter(file => file.uploaded && file.tempId)
+                            .map(file => file.tempId);
+
+                        const commentResponse = await fetch('{{ route('comments.store', $task->id) }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                content: this.newComment.trim() || '',
+                                uploaded_files: uploadedFileIds
+                            })
+                        });
+                        
+                        if (!commentResponse.ok) {
+                            throw new Error('Failed to save comment');
+                        }
+                    }
+                }
                 
                 // Save status change if different
                 if (this.stagedStatus !== this.originalStatus) {

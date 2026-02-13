@@ -1046,11 +1046,11 @@
 <script>
 document.addEventListener('alpine:init', () => {
     Alpine.data('taskForm', () => ({
-        taskType: '{{ old('task_type', $task->task_type) }}',
-        priority: '{{ old('priority', $task->priority ?? 'medium') }}',
-        taskListId: '{{ old('task_list_id', $task->task_list_id) }}',
-        title: '{{ old('title', $task->title) }}',
-        description: '{{ old('description', $task->description) }}',
+        taskType: {!! json_encode(old('task_type', $task->task_type)) !!},
+        priority: {!! json_encode(old('priority', $task->priority ?? 'medium')) !!},
+        taskListId: {!! json_encode(old('task_list_id', $task->task_list_id)) !!},
+        title: {!! json_encode(old('title', $task->title)) !!},
+        description: {!! json_encode(old('description', $task->description)) !!},
         descriptionError: '',
         showTooltip: null,
         attachments: [],
@@ -1071,7 +1071,7 @@ document.addEventListener('alpine:init', () => {
         // Equipment
         equipmentCategories: @json($equipmentCategories ?? []),
         equipmentCategory: '',
-        equipmentId: '{{ old('equipment_id', $task->equipment_id) }}',
+        equipmentId: {!! json_encode(old('equipment_id', $task->equipment_id)) !!},
         selectedEquipmentName: '', // Store the equipment name to display
         showEquipmentDropdown: false,
         loadingEquipment: false,
@@ -1079,8 +1079,8 @@ document.addEventListener('alpine:init', () => {
         
         // Customers
         allCustomers: @json($customers ?? []),
-        customerSearch: '{{ $task->customer_id ? ($customers->firstWhere('id', $task->customer_id)->name ?? '') : '' }}',
-        customerId: '{{ old('customer_id', $task->customer_id) }}',
+        customerSearch: {!! json_encode($task->customer_id ? ($customers->firstWhere('id', $task->customer_id)->name ?? '') : '') !!},
+        customerId: {!! json_encode(old('customer_id', $task->customer_id)) !!},
         showCustomerDropdown: false,
         loadingCustomers: false,
         
@@ -1091,8 +1091,8 @@ document.addEventListener('alpine:init', () => {
         uploadedFiles: [],
         
         // Service Call
-        serviceCallType: '{{ old('service_call_type', $task->serviceCall ? $task->serviceCall->service_type : 'none') }}',
-        serviceCallOrderSearch: '{{ old('service_call_order_id', $task->serviceCall ? $task->serviceCall->order_id : '') }}',
+        serviceCallType: {!! json_encode(old('service_call_type', $task->serviceCall ? $task->serviceCall->service_type : 'none')) !!},
+        serviceCallOrderSearch: {!! json_encode(old('service_call_order_id', $task->serviceCall ? $task->serviceCall->order_id : '')) !!},
         serviceCallCustomerSearch: '',
         serviceCallCustomers: [],
         selectedServiceCallCustomer: null,
@@ -1102,7 +1102,7 @@ document.addEventListener('alpine:init', () => {
         selectedServiceCallOrder: null,
         loadingServiceCallOrders: false,
         showServiceCallOrderDropdown: false,
-        serviceCallOrderId: '{{ old('service_call_order_id', $task->serviceCall ? $task->serviceCall->order_id : '') }}',
+        serviceCallOrderId: {!! json_encode(old('service_call_order_id', $task->serviceCall ? $task->serviceCall->order_id : '')) !!},
         
         async init() {
             // Load templates on initialization
@@ -1146,7 +1146,7 @@ document.addEventListener('alpine:init', () => {
             
             // Load existing service call order if exists
             @if($task->serviceCall && $task->serviceCall->order_id)
-            this.serviceCallOrderSearch = '{{ $task->serviceCall->order_id }}';
+            this.serviceCallOrderSearch = {!! json_encode($task->serviceCall->order_id) !!};
             await this.loadServiceCallOrder();
             @endif
         },

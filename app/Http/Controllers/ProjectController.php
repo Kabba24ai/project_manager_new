@@ -112,7 +112,24 @@ class ProjectController extends Controller
             return response()->json(['data' => ['project' => $project]]);
         }
 
-        return view('projects.show', compact('project'));
+        // Get all projects with task lists for the "Move to" dropdown
+        // Only projects the user has access to
+        $allProjects = Project::with(['taskLists' => function($query) {
+            $query->orderBy('order', 'asc');
+        }])
+        ->where(function($query) use ($user, $isMasterAdmin) {
+            if (!$isMasterAdmin) {
+                $query->where('created_by', $user->id)
+                    ->orWhere('project_manager_id', $user->id)
+                    ->orWhereHas('teamMembers', function($q) use ($user) {
+                        $q->where('users.id', $user->id);
+                    });
+            }
+        })
+        ->orderBy('name', 'asc')
+        ->get();
+
+        return view('projects.show', compact('project', 'allProjects'));
     }
 
     public function create()

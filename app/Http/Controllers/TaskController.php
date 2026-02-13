@@ -380,9 +380,25 @@ class TaskController extends Controller
             'tags' => 'nullable|array',
             'feedback' => 'nullable|string',
             'task_list_id' => 'nullable|exists:task_lists,id',
+            'project_id' => 'nullable|exists:projects,id',
             'attachments' => 'nullable|array',
             'attachments.*' => 'file|max:102400|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,webm,pdf',
         ]);
+
+        // If moving to a different project, check access to target project
+        if ($request->filled('project_id') && $request->project_id != $task->project_id) {
+            $targetProject = Project::with('teamMembers')->findOrFail($request->project_id);
+            
+            $isTargetTeamMember = $targetProject->created_by === Auth::id()
+                || $targetProject->project_manager_id === Auth::id()
+                || $targetProject->teamMembers->contains('id', Auth::id());
+
+            $canMoveToTarget = $isMasterAdmin || $isTargetTeamMember;
+
+            if (!$canMoveToTarget) {
+                return redirect()->back()->with('error', 'You do not have permission to move tasks to that project.');
+            }
+        }
 
         // Check if project requires approval and user is trying to change status to approved
         if ($request->filled('task_status') && $request->task_status === 'approved') {
@@ -412,6 +428,7 @@ class TaskController extends Controller
             'tags',
             'feedback',
             'task_list_id',
+            'project_id',
         ]));
 
         // Save new attachments (optional)
@@ -441,6 +458,12 @@ class TaskController extends Controller
 
         if ($request->expectsJson()) {
             return response()->json(['data' => ['task' => $task]]);
+        }
+
+        // If task was moved to a different project, redirect to that project
+        if ($request->filled('project_id') && $request->project_id != $project->id) {
+            return redirect()->route('projects.show', $request->project_id)
+                ->with('success', 'Task moved successfully to ' . $task->project->name . '.');
         }
 
         return redirect("/tasks/{$task->id}")->with('success', 'Task updated successfully.');

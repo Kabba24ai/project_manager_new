@@ -569,6 +569,14 @@
                                             </div>
 
                                             <div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button 
+                                                    type="button"
+                                                    onclick="copyTaskUrl('{{ route('tasks.show', $task->id) }}', event)"
+                                                    class="p-2 text-gray-400 hover:text-blue-600 transition-colors" 
+                                                    title="Copy Task URL"
+                                                >
+                                                    <i class="fas fa-copy w-4 h-4"></i>
+                                                </button>
                                                 <a href="{{ route('tasks.show', $task->id) }}" class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="View Task">
                                                     <i class="fas fa-eye w-4 h-4"></i>
                                                 </a>
@@ -576,6 +584,62 @@
                                                 <a href="{{ route('tasks.edit', $task->id) }}" class="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="Edit Task">
                                                     <i class="fas fa-edit w-4 h-4"></i>
                                                 </a>
+                                                <div class="relative" x-data="{ open: false }">
+                                                    <button @click="open = !open" class="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="More Options">
+                                                        <i class="fas fa-ellipsis-v w-4 h-4"></i>
+                                                    </button>
+
+                                                    <div x-show="open" @click.away="open = false" x-cloak class="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[250px] max-h-[400px] overflow-y-auto">
+                                                        <div class="px-3 py-2 text-xs text-gray-500 font-medium border-b border-gray-100 sticky top-0 bg-white">Move to:</div>
+                                                        
+                                                        @foreach($allProjects as $targetProject)
+                                                            <div class="border-b border-gray-100 last:border-0">
+                                                                <!-- Project Name Header -->
+                                                                <div class="px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-700 sticky top-8">
+                                                                    {{ $targetProject->name }}
+                                                                    @if($targetProject->id === $project->id)
+                                                                        <span class="text-blue-600">(Current)</span>
+                                                                    @endif
+                                                                </div>
+                                                                
+                                                                <!-- Task Lists for this Project -->
+                                                                @if($targetProject->taskLists->count() > 0)
+                                                                    @foreach($targetProject->taskLists as $targetList)
+                                                                        <form action="{{ route('tasks.update', $task->id) }}" method="POST" class="inline w-full">
+                                                                            @csrf
+                                                                            @method('PUT')
+                                                                            <input type="hidden" name="task_list_id" value="{{ $targetList->id }}">
+                                                                            <input type="hidden" name="project_id" value="{{ $targetProject->id }}">
+                                                                            <button 
+                                                                                type="submit" 
+                                                                                class="w-full px-6 py-2 text-left text-sm hover:bg-gray-50 {{ $task->task_list_id === $targetList->id ? 'text-blue-600 bg-blue-50 font-medium' : 'text-gray-700' }}" 
+                                                                                {{ $task->task_list_id === $targetList->id ? 'disabled' : '' }}
+                                                                                onclick="return confirm('Move this task to {{ $targetProject->name }} - {{ $targetList->name }}?')"
+                                                                            >
+                                                                                <span class="inline-block w-3 h-3 rounded-full mr-2" style="background-color: {{ $targetList->color ?? '#6B7280' }};"></span>
+                                                                                {{ $targetList->name }}
+                                                                                @if($task->task_list_id === $targetList->id)
+                                                                                    <span class="ml-2">✓</span>
+                                                                                @endif
+                                                                            </button>
+                                                                        </form>
+                                                                    @endforeach
+                                                                @else
+                                                                    <div class="px-6 py-2 text-xs text-gray-400 italic">No task lists</div>
+                                                                @endif
+                                                            </div>
+                                                        @endforeach
+                                                        
+                                                        <div class="border-t border-gray-100 mt-1"></div>
+                                                        <form action="{{ route('tasks.destroy', $task->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this task?');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">
+                                                                <i class="fas fa-trash mr-2"></i>Delete Task
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
                                                 @endif
                                             </div>
                                         </div>
@@ -729,6 +793,14 @@
                     </div>
 
                                 <div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button 
+                                        type="button"
+                                        onclick="copyTaskUrl('{{ route('tasks.show', $task->id) }}', event)"
+                                        class="p-2 text-gray-400 hover:text-blue-600 transition-colors" 
+                                        title="Copy Task URL"
+                                    >
+                                        <i class="fas fa-copy w-4 h-4"></i>
+                                    </button>
                                     <a href="{{ route('tasks.show', $task->id) }}" class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="View Task">
                                         <i class="fas fa-eye w-4 h-4"></i>
                                     </a>
@@ -741,25 +813,53 @@
                                             <i class="fas fa-ellipsis-v w-4 h-4"></i>
                                         </button>
 
-                                        <div x-show="open" @click.away="open = false" x-cloak class="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[160px]">
-                                            <div class="px-3 py-1 text-xs text-gray-500 font-medium">Move to:</div>
-                                            @foreach($project->taskLists as $targetList)
-                                            <form action="{{ route('tasks.update', $task->id) }}" method="POST" class="inline">
-                                                @csrf
-                                                @method('PUT')
-                                                <input type="hidden" name="task_list_id" value="{{ $targetList->id }}">
-                                                <button type="submit" class="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 {{ $task->task_list_id === $targetList->id ? 'text-blue-600 bg-blue-50' : 'text-gray-700' }}" {{ $task->task_list_id === $targetList->id ? 'disabled' : '' }}>
-                                                    {{ $targetList->name }} @if($task->task_list_id === $targetList->id)✓@endif
-                                                </button>
-                                            </form>
+                                        <div x-show="open" @click.away="open = false" x-cloak class="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[250px] max-h-[400px] overflow-y-auto">
+                                            <div class="px-3 py-2 text-xs text-gray-500 font-medium border-b border-gray-100 sticky top-0 bg-white">Move to:</div>
+                                            
+                                            @foreach($allProjects as $targetProject)
+                                                <div class="border-b border-gray-100 last:border-0">
+                                                    <!-- Project Name Header -->
+                                                    <div class="px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-700 sticky top-8">
+                                                        {{ $targetProject->name }}
+                                                        @if($targetProject->id === $project->id)
+                                                            <span class="text-blue-600">(Current)</span>
+                                                        @endif
+                                                    </div>
+                                                    
+                                                    <!-- Task Lists for this Project -->
+                                                    @if($targetProject->taskLists->count() > 0)
+                                                        @foreach($targetProject->taskLists as $targetList)
+                                                            <form action="{{ route('tasks.update', $task->id) }}" method="POST" class="inline w-full">
+                                                                @csrf
+                                                                @method('PUT')
+                                                                <input type="hidden" name="task_list_id" value="{{ $targetList->id }}">
+                                                                <input type="hidden" name="project_id" value="{{ $targetProject->id }}">
+                                                                <button 
+                                                                    type="submit" 
+                                                                    class="w-full px-6 py-2 text-left text-sm hover:bg-gray-50 {{ $task->task_list_id === $targetList->id ? 'text-blue-600 bg-blue-50 font-medium' : 'text-gray-700' }}" 
+                                                                    {{ $task->task_list_id === $targetList->id ? 'disabled' : '' }}
+                                                                    onclick="return confirm('Move this task to {{ $targetProject->name }} - {{ $targetList->name }}?')"
+                                                                >
+                                                                    <span class="inline-block w-3 h-3 rounded-full mr-2" style="background-color: {{ $targetList->color ?? '#6B7280' }};"></span>
+                                                                    {{ $targetList->name }}
+                                                                    @if($task->task_list_id === $targetList->id)
+                                                                        <span class="ml-2">✓</span>
+                                                                    @endif
+                                                                </button>
+                                                            </form>
+                                                        @endforeach
+                                                    @else
+                                                        <div class="px-6 py-2 text-xs text-gray-400 italic">No task lists</div>
+                                                    @endif
+                                                </div>
                                             @endforeach
                                             
-                                            <div class="border-t border-gray-100 my-1"></div>
+                                            <div class="border-t border-gray-100 mt-1"></div>
                                             <form action="{{ route('tasks.destroy', $task->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this task?');">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">
-                                                    Delete Task
+                                                    <i class="fas fa-trash mr-2"></i>Delete Task
                                                 </button>
                                             </form>
                                         </div>
@@ -811,6 +911,70 @@
 </style>
 @push('scripts')
 <script>
+function copyTaskUrl(url, event) {
+    // Convert relative URL to absolute URL
+    const absoluteUrl = url.startsWith('http') ? url : window.location.origin + url;
+    
+    // Function to show success feedback
+    function showSuccessFeedback() {
+        const button = event ? event.currentTarget : null;
+        if (button) {
+            const originalTitle = button.getAttribute('title');
+            button.setAttribute('title', 'Copied!');
+            const icon = button.querySelector('i');
+            if (icon) {
+                icon.classList.remove('fa-copy');
+                icon.classList.add('fa-check', 'text-green-600');
+                
+                setTimeout(function() {
+                    button.setAttribute('title', originalTitle);
+                    icon.classList.remove('fa-check', 'text-green-600');
+                    icon.classList.add('fa-copy');
+                }, 2000);
+            }
+        }
+    }
+    
+    // Try modern clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(absoluteUrl).then(function() {
+            showSuccessFeedback();
+        }).catch(function(err) {
+            console.error('Clipboard API failed:', err);
+            // Fallback to execCommand
+            fallbackCopyText(absoluteUrl);
+        });
+    } else {
+        // Use fallback method for older browsers or non-HTTPS
+        fallbackCopyText(absoluteUrl);
+    }
+    
+    function fallbackCopyText(text) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                showSuccessFeedback();
+            } else {
+                alert('Failed to copy URL. Please try again.');
+            }
+        } catch (err) {
+            console.error('Fallback copy failed:', err);
+            alert('Failed to copy URL. Please copy manually: ' + text);
+        }
+        
+        document.body.removeChild(textArea);
+    }
+}
+
 function parseISODate(value) {
     if (!value) return null;
     const d = new Date(value + 'T00:00:00');

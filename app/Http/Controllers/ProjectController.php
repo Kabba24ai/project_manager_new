@@ -144,7 +144,7 @@ class ProjectController extends Controller
         $managers = $managerRoles->isEmpty()
             ? collect()
             : User::role($managerRoles)->with('roles')->orderBy('first_name')->get();
-        $users = User::with('roles')->orderBy('first_name')->get();
+        $users = User::with('roles')->where('status', 'Active')->orderBy('first_name')->get();
 
         return view('projects.create', compact('managers', 'users'));
     }
@@ -272,7 +272,7 @@ class ProjectController extends Controller
         $managers = $managerRoles->isEmpty()
             ? collect()
             : User::role($managerRoles)->with('roles')->orderBy('first_name')->get();
-        $users = User::with('roles')->orderBy('first_name')->get();
+        $users = User::with('roles')->where('status', 'Active')->orderBy('first_name')->get();
 
         return view('projects.edit', compact('project', 'managers', 'users'));
     }

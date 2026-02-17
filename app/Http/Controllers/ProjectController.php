@@ -134,6 +134,7 @@ class ProjectController extends Controller
 
     public function create()
     {
+        // All authenticated users can create projects (no authorization check needed)
         // Resolve roles from DB first to avoid RoleDoesNotExist exceptions
         $managerRoleNames = ['admin', 'manager', 'master admin', 'master_admin', 'master-admin'];
         $managerRoles = Role::query()
@@ -151,6 +152,7 @@ class ProjectController extends Controller
 
     public function store(Request $request)
     {
+        // All authenticated users can create projects (no authorization check needed)
         // Allow formatting like "$50,000" in UI; store numeric value in DB
         if ($request->filled('budget')) {
             $request->merge([

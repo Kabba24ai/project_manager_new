@@ -222,6 +222,7 @@
             showFilters: false, 
             viewMode: 'grid',
             expandedTaskListId: null,
+            hideCompletedLists: true,
             init() {
                 const savedViewMode = localStorage.getItem('projectTaskListViewMode');
                 if (savedViewMode === 'grid' || savedViewMode === 'list') {
@@ -261,7 +262,15 @@
                 <i class="fas fa-chevron-down w-3 h-3 transition-transform" :class="{ 'rotate-180': showFilters }"></i>
             </button>
             
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-center">
+                <label class="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input 
+                        type="checkbox" 
+                        x-model="hideCompletedLists"
+                        class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    >
+                    <span class="text-sm font-medium text-gray-700">Hide Completed Lists</span>
+                </label>
                 <button 
                     @click="viewMode = 'grid'"
                     :class="viewMode === 'grid' ? 'bg-slate-700 text-white hover:bg-slate-800' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'"
@@ -406,7 +415,16 @@
             <div id="grid-view-container" x-show="viewMode === 'grid'" x-transition>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     @foreach($project->taskLists->sortBy('order') as $taskList)
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    @php
+                        $allTasksApproved = $taskList->tasks->count() > 0 && $taskList->tasks->every(function($task) {
+                            return $task->task_status === 'approved';
+                        });
+                    @endphp
+                    <div 
+                        class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
+                        x-show="!hideCompletedLists || !{{ $allTasksApproved ? 'true' : 'false' }}"
+                        x-transition
+                    >
                         <!-- Header with colored background -->
                         <div class="px-5 py-4 {{ $taskList->color }}">
                             <h3 class="text-lg font-semibold text-gray-900">{{ $taskList->name }}</h3>
@@ -446,7 +464,15 @@
                 <!-- Expanded Task List Details (shown below grid) -->
                 <div id="expanded-task-lists-section" x-show="expandedTaskListId !== null" class="mt-8" x-transition>
                     @foreach($project->taskLists->sortBy('order') as $taskList)
-                    <div x-show="expandedTaskListId === {{ $taskList->id }}" class="bg-white rounded-lg shadow-sm border border-gray-200">
+                    @php
+                        $allTasksApproved = $taskList->tasks->count() > 0 && $taskList->tasks->every(function($task) {
+                            return $task->task_status === 'approved';
+                        });
+                    @endphp
+                    <div 
+                        x-show="expandedTaskListId === {{ $taskList->id }} && (!hideCompletedLists || !{{ $allTasksApproved ? 'true' : 'false' }})" 
+                        class="bg-white rounded-lg shadow-sm border border-gray-200"
+                    >
                             <!-- Task List Header -->
                             <div class="px-6 py-4 rounded-t-lg border-b border-gray-200 {{ $taskList->color }}">
                                 <div class="flex items-center justify-between">
@@ -673,7 +699,17 @@
             <div id="list-view-container" x-show="viewMode === 'list'" x-transition>
                 <div class="space-y-8">
                     @foreach($project->taskLists->sortBy('order') as $taskList)
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200" id="task-list-{{ $taskList->id }}">
+                    @php
+                        $allTasksApproved = $taskList->tasks->count() > 0 && $taskList->tasks->every(function($task) {
+                            return $task->task_status === 'approved';
+                        });
+                    @endphp
+                    <div 
+                        class="bg-white rounded-lg shadow-sm border border-gray-200" 
+                        id="task-list-{{ $taskList->id }}"
+                        x-show="!hideCompletedLists || !{{ $allTasksApproved ? 'true' : 'false' }}"
+                        x-transition
+                    >
                         <!-- Task List Header -->
                         <div class="px-6 py-4 rounded-t-lg border-b border-gray-200 {{ $taskList->color }}">
                             <div class="flex items-center justify-between">

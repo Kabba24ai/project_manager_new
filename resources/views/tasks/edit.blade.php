@@ -2,6 +2,7 @@
 
 @section('title', 'Proj Mgr - Edit Task')
 
+
 @section('content')
 <div class="min-h-screen bg-gray-50" x-data="taskForm">
     <!-- Header -->
@@ -377,15 +378,14 @@
                                     </button>
                                 </div>
                             </div>
+                            <div id="description-editor-container"></div>
                             <textarea 
                                 id="description" 
                                 name="description" 
                                 x-model="description"
                                 required
                                 rows="4"
-                                :class="descriptionError ? 'border-red-300 bg-red-50' : 'border-gray-300'"
-                                class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none @error('description') border-red-300 bg-red-50 @enderror"
-                                placeholder="Describe the task requirements and goals"
+                                style="display: none;"
                             >{{ old('description', $task->description) }}</textarea>
                             @error('description')
                             <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
@@ -1014,7 +1014,7 @@
 
                 <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
                     <p class="text-xs font-medium text-gray-700 mb-1">Preview:</p>
-                    <p class="text-sm text-gray-600" x-text="description || 'No description entered yet'"></p>
+                    <div class="text-sm text-gray-600" x-html="description || 'No description entered yet'"></div>
                 </div>
 
                 <div class="flex items-center justify-end space-x-3 pt-4 border-t">
@@ -1040,9 +1040,80 @@
 
 <style>
 [x-cloak] { display: none !important; }
+
+/* CKEditor Link Styling */
+.ck-editor__editable a {
+    color: #2563eb !important;
+    text-decoration: underline !important;
+}
+
+.ck-editor__editable a:hover {
+    color: #1d4ed8 !important;
+}
 </style>
 
 @push('scripts')
+<!-- CKEditor 5 -->
+<script src="https://cdn.ckeditor.com/ckeditor5/41.0.0/classic/ckeditor.js"></script>
+<script>
+let descriptionEditor = null;
+
+// Initialize CKEditor after Alpine.js is ready
+document.addEventListener('alpine:init', () => {
+    // Wait a bit for the DOM to be ready
+    setTimeout(() => {
+        ClassicEditor
+            .create(document.querySelector('#description-editor-container'), {
+                toolbar: {
+                    items: [
+                        'heading', '|',
+                        'bold', 'italic', 'underline', 'strikethrough', '|',
+                        'fontSize', 'fontColor', 'fontBackgroundColor', '|',
+                        'bulletedList', 'numberedList', '|',
+                        'alignment', '|',
+                        'link', 'blockQuote', 'insertTable', '|',
+                        'undo', 'redo'
+                    ]
+                },
+                placeholder: 'Describe the task requirements and goals',
+                link: {
+                    decorators: {
+                        openInNewTab: {
+                            mode: 'manual',
+                            label: 'Open in a new tab',
+                            attributes: {
+                                target: '_blank',
+                                rel: 'noopener noreferrer'
+                            }
+                        }
+                    }
+                }
+            })
+            .then(editor => {
+                descriptionEditor = editor;
+                
+                // Set initial content
+                const initialContent = document.querySelector('#description').value;
+                if (initialContent) {
+                    editor.setData(initialContent);
+                }
+                
+                // Sync CKEditor content to Alpine.js and hidden textarea
+                editor.model.document.on('change:data', () => {
+                    const data = editor.getData();
+                    const alpineComponent = Alpine.$data(document.querySelector('[x-data]'));
+                    if (alpineComponent && alpineComponent.description !== undefined) {
+                        alpineComponent.description = data;
+                    }
+                    document.querySelector('#description').value = data;
+                });
+            })
+            .catch(error => {
+                console.error('Error initializing CKEditor:', error);
+            });
+    }, 100);
+});
+</script>
 <script>
 document.addEventListener('alpine:init', () => {
     Alpine.data('taskForm', () => ({
@@ -1304,11 +1375,17 @@ document.addEventListener('alpine:init', () => {
             const template = this.availableTemplates.find(t => t.id.toString() === this.selectedTemplateId);
             if (template) {
                 this.description = template.template_text;
+                // Update CKEditor if it's initialized
+                if (descriptionEditor) {
+                    descriptionEditor.setData(template.template_text);
+                }
             }
         },
         
         handleSaveAsTemplate() {
-            if (!this.description || !this.description.trim()) {
+            // Get description from CKEditor if available, otherwise from Alpine.js
+            const description = descriptionEditor ? descriptionEditor.getData() : this.description;
+            if (!description || !description.trim()) {
                 alert('Please enter a description first');
                 return;
             }
@@ -1337,6 +1414,9 @@ document.addEventListener('alpine:init', () => {
             this.savingTemplate = true;
             
             try {
+                // Get description from CKEditor if available, otherwise from Alpine.js
+                const description = descriptionEditor ? descriptionEditor.getData() : this.description;
+                
                 const response = await fetch('/api/task-templates', {
                     method: 'POST',
                     headers: {
@@ -1346,7 +1426,7 @@ document.addEventListener('alpine:init', () => {
                     },
                     body: JSON.stringify({
                         name: this.templateSaveData.name,
-                        template_text: this.description,
+                        template_text: description,
                         is_universal: this.templateSaveData.is_universal,
                         task_types: this.templateSaveData.task_types
                     })
@@ -1411,7 +1491,7 @@ document.addEventListener('alpine:init', () => {
             const select = document.getElementById('task_list_id');
             const option = select?.querySelector(`option[value="${this.taskListId}"]`);
             if (!option) return null;
-            return {
+    return {
                 id: this.taskListId,
                 name: option.dataset.name,
                 description: option.dataset.description,
@@ -1700,15 +1780,30 @@ document.addEventListener('alpine:init', () => {
             // Clear previous errors
             this.descriptionError = '';
             
+            // Get description from CKEditor if available, otherwise from Alpine.js
+            const description = descriptionEditor ? descriptionEditor.getData() : this.description;
+            const descriptionText = description ? description.replace(/<[^>]*>/g, '').trim() : '';
+            
             // Validate description
-            if (!this.description || this.description.trim() === '') {
+            if (!descriptionText) {
                 this.descriptionError = 'Task description is required.';
-                const descriptionField = document.getElementById('description');
-                if (descriptionField) {
-                    descriptionField.focus();
-                    descriptionField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Focus on description field
+                if (descriptionEditor) {
+                    descriptionEditor.focus();
+                } else {
+                    const descriptionField = document.getElementById('description');
+                    if (descriptionField) {
+                        descriptionField.focus();
+                        descriptionField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                 }
                 return;
+            }
+            
+            // Update Alpine.js description and hidden textarea
+            this.description = description;
+            if (document.querySelector('#description')) {
+                document.querySelector('#description').value = description;
             }
             
             // Check if any files are still uploading
@@ -1716,6 +1811,13 @@ document.addEventListener('alpine:init', () => {
             if (stillUploading) {
                 alert('Please wait for all files to finish uploading.');
                 return;
+            }
+            
+            // Sync CKEditor content to hidden textarea before form submission
+            if (descriptionEditor) {
+                const editorData = descriptionEditor.getData();
+                this.description = editorData;
+                document.querySelector('#description').value = editorData;
             }
             
             // Get form and create FormData

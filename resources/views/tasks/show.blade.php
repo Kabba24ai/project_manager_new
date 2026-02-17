@@ -49,7 +49,9 @@
                         <h1 class="text-2xl font-bold text-gray-900">{{ $task->title }}</h1>
                         
                     </div>
-                    <p class="text-gray-700 whitespace-pre-line">{{ $task->description }}</p>
+                    <div class="text-gray-700 prose prose-sm max-w-none task-description">
+                        {!! $task->description !!}
+                    </div>
                 </div>
 
                 <!-- Attachments -->
@@ -999,6 +1001,80 @@
 
 <style>
 [x-cloak] { display: none !important; }
+
+/* Task Description Styling */
+.task-description {
+    line-height: 1.6;
+}
+
+.task-description p {
+    margin-bottom: 1em;
+}
+
+.task-description p:last-child {
+    margin-bottom: 0;
+}
+
+.task-description a {
+    color: #2563eb;
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+.task-description a:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+.task-description ul,
+.task-description ol {
+    margin-left: 1.5em;
+    margin-bottom: 1em;
+}
+
+.task-description li {
+    margin-bottom: 0.5em;
+}
+
+.task-description h1,
+.task-description h2,
+.task-description h3,
+.task-description h4,
+.task-description h5,
+.task-description h6 {
+    font-weight: 600;
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+}
+
+.task-description h1 { font-size: 1.5em; }
+.task-description h2 { font-size: 1.3em; }
+.task-description h3 { font-size: 1.1em; }
+
+.task-description blockquote {
+    border-left: 4px solid #e5e7eb;
+    padding-left: 1em;
+    margin: 1em 0;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.task-description table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+}
+
+.task-description table td,
+.task-description table th {
+    border: 1px solid #e5e7eb;
+    padding: 0.5em;
+}
+
+.task-description table th {
+    background-color: #f9fafb;
+    font-weight: 600;
+}
 </style>
 
 @push('scripts')

@@ -560,7 +560,9 @@
                                                             </span>
                                                         </div>
                                                     </div>
-                                                    <p class="text-sm text-gray-600 mb-2">{{ Str::limit($task->description, 100) }}</p>
+                                                    <div class="text-sm text-gray-600 mb-2 task-description-preview">
+                                                        {!! $task->description ?: '' !!}
+                                                    </div>
                                                     
                                                     <div class="flex items-center space-x-4 text-xs text-gray-500">
                                                         @if($task->assignedUser)
@@ -801,7 +803,9 @@
                                             </div>
                                             
                                         </div>
-                                        <p class="text-sm text-gray-600 mb-2">{{ Str::limit($task->description, 100) }}</p>
+                                        <div class="text-sm text-gray-600 mb-2 task-description-preview">
+                                            {!! $task->description ?: '' !!}
+                                        </div>
                                         
                                         <div class="flex items-center space-x-4 text-xs text-gray-500">
                                             @if($task->assignedUser)
@@ -958,6 +962,66 @@
 
 <style>
 [x-cloak] { display: none !important; }
+
+/* Task Description Preview Styling */
+.task-description-preview {
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.task-description-preview p {
+    margin-bottom: 0.5em;
+}
+
+.task-description-preview p:last-child {
+    margin-bottom: 0;
+}
+
+.task-description-preview a {
+    color: #2563eb;
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+.task-description-preview a:hover {
+    color: #1d4ed8;
+}
+
+.task-description-preview ul,
+.task-description-preview ol {
+    margin-left: 1em;
+    margin-bottom: 0.5em;
+}
+
+.task-description-preview li {
+    margin-bottom: 0.25em;
+}
+
+.task-description-preview h1,
+.task-description-preview h2,
+.task-description-preview h3,
+.task-description-preview h4,
+.task-description-preview h5,
+.task-description-preview h6 {
+    font-weight: 600;
+    margin-top: 0.5em;
+    margin-bottom: 0.25em;
+    font-size: 1em;
+}
+
+.task-description-preview strong,
+.task-description-preview b {
+    font-weight: 600;
+}
+
+.task-description-preview em,
+.task-description-preview i {
+    font-style: italic;
+}
 </style>
 @push('scripts')
 <script>

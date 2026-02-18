@@ -1050,6 +1050,19 @@
 .ck-editor__editable a:hover {
     color: #1d4ed8 !important;
 }
+
+/* CKEditor Height - 4 lines */
+#description-editor-container .ck-editor__editable,
+#description-editor-container .ck-editor__editable[contenteditable="true"] {
+    min-height: 120px !important;
+    height: 120px !important;
+    overflow-y: auto !important;
+}
+
+.ck-editor__editable {
+    min-height: 120px !important;
+    height: 120px !important;
+}
 </style>
 
 @push('scripts')
@@ -1076,6 +1089,11 @@ document.addEventListener('alpine:init', () => {
                     ]
                 },
                 placeholder: 'Describe the task requirements and goals',
+                ui: {
+                    viewportOffset: {
+                        top: 0
+                    }
+                },
                 link: {
                     decorators: {
                         openInNewTab: {
@@ -1091,6 +1109,21 @@ document.addEventListener('alpine:init', () => {
             })
             .then(editor => {
                 descriptionEditor = editor;
+                
+                // Set editor height to 4 lines (120px) after editor is ready
+                setTimeout(() => {
+                    const editableElement = editor.editing.view.domConverter.viewToDom(editor.editing.view.document.getRoot());
+                    if (editableElement) {
+                        editableElement.style.minHeight = '120px';
+                        editableElement.style.height = '120px';
+                    }
+                    // Also try to set via the editor's UI element
+                    const editorElement = editor.ui.getEditableElement();
+                    if (editorElement) {
+                        editorElement.style.minHeight = '120px';
+                        editorElement.style.height = '120px';
+                    }
+                }, 100);
                 
                 // Set initial content
                 const initialContent = document.querySelector('#description').value;

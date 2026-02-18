@@ -218,8 +218,24 @@ class TaskController extends Controller
 
         $task->load('assignedUser');
 
-        if ($request->expectsJson()) {
-            return response()->json(['data' => ['task' => $task]], 201);
+        // Determine redirect based on submit action
+        $submitAction = $request->input('submit_action', 'save_exit');
+        
+        if ($request->expectsJson() || $request->ajax()) {
+            $redirectUrl = $submitAction === 'save' 
+                ? route('tasks.show', $task->id)
+                : route('projects.show', $taskList->project_id);
+            
+            return response()->json([
+                'data' => ['task' => $task],
+                'redirect' => $redirectUrl
+            ], 201);
+        }
+
+        // For non-AJAX requests, redirect based on action
+        if ($submitAction === 'save') {
+            return redirect()->route('tasks.show', $task->id)
+                ->with('success', 'Task created successfully.');
         }
 
         return redirect()->route('projects.show', $taskList->project_id)

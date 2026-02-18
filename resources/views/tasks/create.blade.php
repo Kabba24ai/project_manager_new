@@ -825,13 +825,22 @@
                         Cancel
                     </a>
                     <button
-                        type="submit"
+                        type="button"
                         x-bind:disabled="!canShowStep3() || uploading"
-                        @click.prevent="submitWithProgress"
+                        @click.prevent="submitWithProgress('save')"
                         class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <i class="fas" :class="uploading ? 'fa-spinner fa-spin' : 'fa-save'"></i>
-                        <span x-text="uploading ? 'Uploading...' : 'Create Task'"></span>
+                        <i class="fas" :class="uploading && submitAction === 'save' ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+                        <span x-text="uploading && submitAction === 'save' ? 'Saving...' : 'Save'"></span>
+                    </button>
+                    <button
+                        type="button"
+                        x-bind:disabled="!canShowStep3() || uploading"
+                        @click.prevent="submitWithProgress('save_exit')"
+                        class="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <i class="fas" :class="uploading && submitAction === 'save_exit' ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+                        <span x-text="uploading && submitAction === 'save_exit' ? 'Saving...' : 'Save & Exit'"></span>
                     </button>
                 </div>
             </div>
@@ -962,6 +971,19 @@
 .ck-editor__editable a:hover {
     color: #1d4ed8 !important;
 }
+
+/* CKEditor Height - 4 lines */
+#description-editor-container .ck-editor__editable,
+#description-editor-container .ck-editor__editable[contenteditable="true"] {
+    min-height: 120px !important;
+    height: 120px !important;
+    overflow-y: auto !important;
+}
+
+.ck-editor__editable {
+    min-height: 120px !important;
+    height: 120px !important;
+}
 </style>
 
 @push('scripts')
@@ -988,6 +1010,11 @@ document.addEventListener('alpine:init', () => {
                     ]
                 },
                 placeholder: 'Describe the task requirements and goals',
+                ui: {
+                    viewportOffset: {
+                        top: 0
+                    }
+                },
                 link: {
                     decorators: {
                         openInNewTab: {
@@ -1003,6 +1030,21 @@ document.addEventListener('alpine:init', () => {
             })
             .then(editor => {
                 descriptionEditor = editor;
+                
+                // Set editor height to 4 lines (120px) after editor is ready
+                setTimeout(() => {
+                    const editableElement = editor.editing.view.domConverter.viewToDom(editor.editing.view.document.getRoot());
+                    if (editableElement) {
+                        editableElement.style.minHeight = '120px';
+                        editableElement.style.height = '120px';
+                    }
+                    // Also try to set via the editor's UI element
+                    const editorElement = editor.ui.getEditableElement();
+                    if (editorElement) {
+                        editorElement.style.minHeight = '120px';
+                        editorElement.style.height = '120px';
+                    }
+                }, 100);
                 
                 // Set initial content
                 const initialContent = document.querySelector('#description').value;
@@ -1071,6 +1113,7 @@ function taskForm() {
         uploadProgress: 0,
         uploadStatus: 'Preparing upload...',
         uploadedFiles: [], // Store uploaded file references
+        submitAction: '', // Track which button was clicked: 'save' or 'save_exit'
         
         // Service Call
         serviceCallType: 'none',
@@ -1617,7 +1660,10 @@ function taskForm() {
             this.showServiceCallOrderDropdown = false;
         },
         
-        submitWithProgress() {
+        submitWithProgress(action = 'save') {
+            // Set the submit action
+            this.submitAction = action;
+            
             // Clear previous errors
             this.descriptionError = '';
             
@@ -1638,6 +1684,7 @@ function taskForm() {
                         descriptionField.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }
                 }
+                this.submitAction = '';
                 return;
             }
             
@@ -1651,6 +1698,7 @@ function taskForm() {
             const stillUploading = this.attachments.some(file => file.uploading);
             if (stillUploading) {
                 alert('Please wait for all files to finish uploading.');
+                this.submitAction = '';
                 return;
             }
             
@@ -1664,6 +1712,9 @@ function taskForm() {
             // Get form and create FormData
             const form = this.$refs.taskForm;
             const formData = new FormData(form);
+            
+            // Add the action type to form data
+            formData.append('submit_action', action);
             
             // Add uploaded file IDs to form data
             this.uploadedFiles.forEach((tempId, index) => {
@@ -1714,16 +1765,26 @@ function taskForm() {
                         if (response.redirect) {
                             window.location.href = response.redirect;
                         } else {
-                            // Fallback: redirect to projects page
-                            window.location.href = '{{ route('projects.show', $project->id) }}';
+                            // Fallback: redirect based on action
+                            if (action === 'save_exit') {
+                                window.location.href = '{{ route('projects.show', $project->id) }}';
+                            } else {
+                                // For 'save', redirect to task show page (will be set by controller)
+                                window.location.href = '{{ route('projects.show', $project->id) }}';
+                            }
                         }
                     } catch (e) {
-                        // If not JSON, try to redirect to projects page
-                        window.location.href = '{{ route('projects.show', $project->id) }}';
+                        // If not JSON, redirect based on action
+                        if (action === 'save_exit') {
+                            window.location.href = '{{ route('projects.show', $project->id) }}';
+                        } else {
+                            window.location.href = '{{ route('projects.show', $project->id) }}';
+                        }
                     }
                 } else {
                     this.uploadStatus = 'Failed to create task. Please try again.';
                     this.uploading = false;
+                    this.submitAction = '';
                     alert('Failed to create task: ' + xhr.statusText);
                 }
             });
@@ -1732,6 +1793,7 @@ function taskForm() {
             xhr.addEventListener('error', () => {
                 this.uploadStatus = 'Error creating task. Please check your connection.';
                 this.uploading = false;
+                this.submitAction = '';
                 alert('Error creating task. Please check your connection and try again.');
             });
             

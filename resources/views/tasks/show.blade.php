@@ -232,7 +232,7 @@
                             @endif
                             <button 
                                 type="button" 
-                                @click="setStatus('{{ $status['value'] }}')" 
+                                @click="{{ $status['value'] === 'approved' ? 'approveAndSave()' : 'setStatus(\'' . $status['value'] . '\')' }}" 
                                 :class="{'{{ $status['activeColor'] }}': stagedStatus === '{{ $status['value'] }}', 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50': stagedStatus !== '{{ $status['value'] }}'}"
                                 class="inline-flex flex-col items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors border-2"
                             >
@@ -244,7 +244,7 @@
                             </button>
                         @endforeach
                     </div>
-                    <p class="text-xs text-gray-500 mt-3">Click any status to stage changes. Click "Save & Exit" to save all changes.</p>
+                    <p class="text-xs text-gray-500 mt-3">Click any status to stage changes. Click "Save & Exit" to save all changes. Clicking "Approved" will automatically save and exit.</p>
                 </div>
 
                 <!-- Comments Section -->
@@ -262,15 +262,16 @@
                         this.previewUrl = null;
                     }
                 }">
+                    
                     <div class="flex items-center justify-between mb-6">
                         <h2 class="text-lg font-semibold text-gray-900">
                             Activity & Comments ({{ $task->comments->count() }})
                         </h2>
                     </div>
-
+                    @if($task->comments->count() > 0)
                     <!-- Comments List -->
                     <div class="space-y-6 mb-8">
-                        @forelse($task->comments as $comment)
+                        @foreach($task->comments as $comment)
                         <div class="flex space-x-4" x-data="{ 
                             isEditing: false, 
                             editContent: '{{ addslashes($comment->content) }}',
@@ -415,17 +416,12 @@
                                 </div>
                             </div>
                         </div>
-                        @empty
-                        <div class="text-center py-12 text-gray-500">
-                            <i class="fas fa-comment text-5xl text-gray-300 mb-4"></i>
-                            <h4 class="text-lg font-medium text-gray-900 mb-2">No comments yet</h4>
-                            <p class="text-sm">Start the conversation by adding the first comment!</p>
-                        </div>
-                        @endforelse
+                        @endforeach
                     </div>
+                    @endif
 
                     <!-- Add Comment Form -->
-                    <div class="border-t border-gray-200 pt-6">
+                    <div class="{{ $task->comments->count() > 0 ? 'border-t border-gray-200' : '' }} pt-6">
                             <div class="flex space-x-4">
                                 <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                                     <span class="text-sm font-medium text-white">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
@@ -1099,6 +1095,74 @@ function taskChangesManager() {
         
         setStatus(status) {
             this.stagedStatus = status;
+        },
+        
+        async approveAndSave() {
+            // Set status to approved
+            this.stagedStatus = 'approved';
+            
+            try {
+                // Save comment first if there's an unsaved comment
+                if (this.hasUnsavedComment()) {
+                    // Check if any files are still uploading
+                    const stillUploading = this.commentAttachments.some(file => file.uploading);
+                    if (stillUploading) {
+                        alert('Please wait for all files to finish uploading.');
+                        return;
+                    }
+                    
+                    // Check if any files failed to upload
+                    const failedUploads = this.commentAttachments.some(file => file.error);
+                    if (failedUploads) {
+                        alert('Some files failed to upload. Please remove them and try again.');
+                        return;
+                    }
+                    
+                    // Only save comment if there's actual content (text or files)
+                    if (this.newComment.trim() || this.commentAttachments.some(file => file.uploaded && file.tempId)) {
+                        // Collect uploaded file IDs
+                        const uploadedFileIds = this.commentAttachments
+                            .filter(file => file.uploaded && file.tempId)
+                            .map(file => file.tempId);
+
+                        const commentResponse = await fetch('{{ route('comments.store', $task->id) }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                content: this.newComment.trim() || '',
+                                uploaded_files: uploadedFileIds
+                            })
+                        });
+                        
+                        if (!commentResponse.ok) {
+                            throw new Error('Failed to save comment');
+                        }
+                    }
+                }
+                
+                // Save status change (always update to approved, even if already approved)
+                await fetch('{{ route('tasks.update-status', $task->id) }}', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        status: 'approved'
+                    })
+                });
+                
+                // Redirect to dashboard page
+                window.location.href = '{{ route('dashboard') }}';
+            } catch (error) {
+                console.error('Error saving changes:', error);
+                alert('Failed to save changes. Please try again.');
+            }
         },
         
         handleCommentFileUpload(event) {

@@ -968,9 +968,20 @@
                         <!-- Task List -->
                         <div>
                             <label class="block text-sm font-medium text-gray-500 mb-1">Task List</label>
-                            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium {{ $task->taskList->color }}">
-                                {{ $task->taskList->name }}
-                            </span>
+                            <div class="inline-flex items-center gap-2">
+                                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium {{ $task->taskList->color }}">
+                                    {{ $task->taskList->name }}
+                                </span>
+                                <button 
+                                    type="button"
+                                    @click="copyTaskLink()"
+                                    class="text-blue-500 hover:text-blue-600 transition-colors relative"
+                                    :title="copiedTaskLink ? 'Copied successfully' : 'Copy task view link'"
+                                >
+                                    <i class="fas fa-copy text-sm" :class="copiedTaskLink ? 'text-green-500' : ''"></i>
+                                    <span x-show="copiedTaskLink" x-transition class="absolute -top-8 left-1/2 transform  bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">Copied successfully</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -1082,6 +1093,56 @@ function taskChangesManager() {
         newComment: '',
         isSavingComment: false,
         commentAttachments: [],
+        copiedTaskLink: false,
+        
+        copyTaskLink() {
+            const taskUrl = window.location.href;
+            
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(taskUrl).then(() => {
+                    this.copiedTaskLink = true;
+                    setTimeout(() => {
+                        this.copiedTaskLink = false;
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                    this.fallbackCopy(taskUrl);
+                });
+            } else {
+                // Fallback for older browsers or non-HTTPS
+                this.fallbackCopy(taskUrl);
+            }
+        },
+        
+        fallbackCopy(text) {
+            // Create a temporary textarea element
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-999999px';
+            textarea.style.top = '-999999px';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    this.copiedTaskLink = true;
+                    setTimeout(() => {
+                        this.copiedTaskLink = false;
+                    }, 2000);
+                } else {
+                    alert('Failed to copy link. Please copy manually: ' + text);
+                }
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                alert('Failed to copy link. Please copy manually: ' + text);
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        },
         
         get hasChanges() {
             const hasStatusChange = this.stagedStatus !== this.originalStatus;

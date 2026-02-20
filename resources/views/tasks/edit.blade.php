@@ -297,46 +297,214 @@
                         </div>
                     </div>
 
-                    <!-- Customer Name: Customer Search -->
+                    <!-- Customer Name: Customer and Order Selection -->
                     <div x-show="taskType === 'customerName'">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                Customer *
-                            </label>
-                            <div class="relative" @click.away="showCustomerDropdown = false">
-                                <div class="relative">
-                                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                                    <input
-                                        type="text"
-                                        x-model="customerSearch"
-                                        @input="showCustomerDropdown = true; customerId = ''"
-                                        @focus="showCustomerDropdown = true"
-                                        :disabled="loadingCustomers"
-                                        class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                        :class="{ 'border-red-300 bg-red-50': !customerId && attemptedSubmit }"
-                                        :placeholder="loadingCustomers ? 'Loading customers...' : 'Search customers...'"
-                                    />
+                        <div class="space-y-4">
+                            <!-- Customer Type -->
+                            <div class="flex items-center space-x-4 flex-nowrap">
+                                <label class="block text-sm font-medium text-gray-700">
+                                    Customer Type *
+                                </label>
+                                <div class="flex items-center space-x-6">
+                                    <label class="flex items-center cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="customer_type"
+                                            value="general"
+                                            x-model="customerType"
+                                            class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                        />
+                                        <span class="ml-2 text-sm text-gray-700">General</span>
+                                    </label>
+                                    <label class="flex items-center cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="customer_type"
+                                            value="charge"
+                                            x-model="customerType"
+                                            class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                        />
+                                        <span class="ml-2 text-sm text-gray-700">Charge</span>
+                                    </label>
+                                    <label class="flex items-center cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="customer_type"
+                                            value="refund"
+                                            x-model="customerType"
+                                            class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                        />
+                                        <span class="ml-2 text-sm text-gray-700">Refund</span>
+                                    </label>
                                 </div>
-                                
-                                <div x-show="showCustomerDropdown && getFilteredCustomers().length > 0 && !loadingCustomers" 
-                                     x-cloak
-                                     class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                                    <template x-for="customer in getFilteredCustomers()" :key="customer.id">
-                                        <button
-                                            type="button"
-                                            @click="selectCustomer(customer)"
-                                            class="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-                                        >
-                                            <div class="font-medium text-gray-900" x-text="customer.name"></div>
-                                            <div class="text-sm text-gray-500">
-                                                <span x-text="customer.email"></span> • <span x-text="formatPhone(customer.phone)"></span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Customer *
+                                        <span x-show="selectedCustomerForTask" class="ml-2 text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                            Selected
+                                        </span>
+                                    </label>
+                                    <div class="relative" @click.away="showCustomerForTaskDropdown = false">
+                                        <div class="relative">
+                                            <i class="fas fa-user absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                            <input
+                                                type="text"
+                                                x-model="customerForTaskSearch"
+                                                @input.debounce.300ms="handleCustomerForTaskSearch()"
+                                                @focus="showCustomerForTaskDropdown = true; if (customerForTaskSearch.length >= 2) handleCustomerForTaskSearch()"
+                                                class="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                                :class="{ 'border-red-300 bg-red-50': !selectedCustomerForTask && attemptedSubmit, 'border-blue-400 bg-blue-50': selectedCustomerForTask }"
+                                                placeholder="Search customer (name, email)..."
+                                            />
+                                            <button
+                                                type="button"
+                                                x-show="customerForTaskSearch.length > 0"
+                                                @click="customerForTaskSearch = ''; selectedCustomerForTask = null; customersForTask = []; showCustomerForTaskDropdown = false; customerId = ''; orderId = ''; selectedOrderForTask = null; ordersForTask = [];"
+                                                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                            >
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+
+                                        <div x-show="showCustomerForTaskDropdown || loadingCustomerForTask" 
+                                             x-cloak
+                                             class="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                            <!-- Loading state -->
+                                            <div x-show="loadingCustomerForTask" class="px-4 py-3 text-center text-gray-500">
+                                                <i class="fas fa-spinner fa-spin mr-2"></i>
+                                                Searching customers...
                                             </div>
-                                        </button>
-                                    </template>
+                                            
+                                            <!-- No results state -->
+                                            <div x-show="!loadingCustomerForTask && customerForTaskSearch.length >= 2 && customersForTask.length === 0" class="px-4 py-3 text-center text-gray-500">
+                                                No customers found
+                                            </div>
+                                            
+                                            <!-- Results -->
+                                            <template x-for="(customer, index) in customersForTask" :key="'customer-' + customer.id + '-' + index">
+                                                <button
+                                                    type="button"
+                                                    @click="handleCustomerForTaskSelect(customer)"
+                                                    class="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-0"
+                                                >
+                                                    <div class="font-medium text-gray-900" x-text="customer.firstName + ' ' + customer.lastName"></div>
+                                                    <div class="text-sm text-gray-500">
+                                                        <span x-text="customer.email"></span>
+                                                        <span x-show="customer.company" class="ml-2">• <span x-text="customer.company"></span></span>
+                                                    </div>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="customer_id" x-model="customerId">
                                 </div>
-                                
-                                <input type="hidden" name="customer_id" x-model="customerId">
-                                <input type="hidden" name="title" x-model="title">
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Order ID (Optional)
+                                    </label>
+                                    <div class="relative" @click.away="showOrderForTaskDropdown = false">
+                                        <div class="relative">
+                                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                            <input
+                                                type="text"
+                                                x-model="orderForTaskSearch"
+                                                @input.debounce.300ms="handleOrderForTaskSearch()"
+                                                @focus="showOrderForTaskDropdown = true; if (orderForTaskSearch.length >= 2) handleOrderForTaskSearch()"
+                                                class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                                :placeholder="loadingOrderForTask ? 'Loading orders...' : 'Search Order ID...'"
+                                            />
+                                        </div>
+
+                                        <div x-show="!selectedOrderForTask && ((selectedCustomerForTask && ordersForTask.length > 0) || loadingOrderForTask || (showOrderForTaskDropdown && orderForTaskSearch.length >= 2))" 
+                                             x-cloak
+                                             class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                            <!-- Loading state -->
+                                            <div x-show="loadingOrderForTask" class="px-4 py-3 text-center text-gray-500">
+                                                <i class="fas fa-spinner fa-spin mr-2"></i>
+                                                Loading orders...
+                                            </div>
+                                            
+                                            <!-- No results state -->
+                                            <div x-show="!loadingOrderForTask && orderForTaskSearch.length >= 2 && getFilteredOrdersForTask().length === 0" class="px-4 py-3 text-center text-gray-500">
+                                                No orders found
+                                            </div>
+                                            
+                                            <!-- Results -->
+                                            <template x-for="order in getFilteredOrdersForTask()" :key="order.id">
+                                                <button
+                                                    type="button"
+                                                    @click="handleOrderForTaskSelect(order)"
+                                                    class="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                                                >
+                                                    <div class="font-medium text-gray-900" x-text="order.orderNumber"></div>
+                                                    <div class="text-sm text-gray-500">
+                                                        <span x-text="order.customer?.name"></span> • <span x-text="order.product"></span>
+                                                    </div>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="order_id" x-model="orderId">
+                                </div>
+                            </div>
+
+                            <div x-show="selectedOrderForTask" class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <div class="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <p class="font-medium text-gray-700">Order ID:</p>
+                                        <p class="text-gray-900" x-text="selectedOrderForTask?.orderNumber"></p>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-700">Email:</p>
+                                        <p class="text-blue-600" x-text="selectedOrderForTask?.customer?.email || 'N/A'"></p>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-700">Customer Name:</p>
+                                        <p class="text-gray-900" x-text="selectedOrderForTask?.customer?.name"></p>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-700">Phone:</p>
+                                        <p class="text-gray-900" x-text="formatPhone(selectedOrderForTask?.customer?.phone)"></p>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-700">Company:</p>
+                                        <p class="text-gray-900" x-text="selectedOrderForTask?.customer?.company || 'N/A'"></p>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-700">Billing Address:</p>
+                                        <p class="text-gray-900" x-text="selectedOrderForTask?.billingAddress || 'N/A'"></p>
+                                        <template x-if="selectedOrderForTask?.billingAddress && selectedOrderForTask?.billingAddress !== 'N/A'">
+                                            <a :href="'https://maps.google.com/?q=' + encodeURIComponent(selectedOrderForTask?.billingAddress)"
+                                               target="_blank" 
+                                               class="text-blue-600 text-xs hover:underline inline-block mt-1">
+                                                See on maps
+                                            </a>
+                                        </template>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-700">Product:</p>
+                                        <p class="text-gray-900" x-text="selectedOrderForTask?.product"></p>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-700">Delivery Info:</p>
+                                        <template x-if="selectedOrderForTask?.shippingAddress === selectedOrderForTask?.billingAddress && selectedOrderForTask?.billingAddress && selectedOrderForTask?.billingAddress !== 'N/A'">
+                                            <p class="text-gray-900 italic">Same as billing information</p>
+                                        </template>
+                                        <template x-if="selectedOrderForTask?.shippingAddress !== selectedOrderForTask?.billingAddress || !selectedOrderForTask?.billingAddress || selectedOrderForTask?.billingAddress === 'N/A'">
+                                            <p class="text-gray-900" x-text="selectedOrderForTask?.shippingAddress || 'N/A'"></p>
+                                        </template>
+                                        <template x-if="selectedOrderForTask?.shippingAddress && selectedOrderForTask?.shippingAddress !== 'N/A' && selectedOrderForTask?.shippingAddress !== selectedOrderForTask?.billingAddress">
+                                            <a :href="'https://maps.google.com/?q=' + encodeURIComponent(selectedOrderForTask?.shippingAddress)"
+                                               target="_blank" 
+                                               class="text-blue-600 text-xs hover:underline inline-block mt-1">
+                                                See on maps
+                                            </a>
+                                        </template>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -774,7 +942,7 @@
 
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                                        Order ID *
+                                        Order ID (Optional)
                                     </label>
                                     <div class="relative" @click.away="showServiceCallOrderDropdown = false">
                                         <div class="relative">
@@ -1181,12 +1349,26 @@ document.addEventListener('alpine:init', () => {
         loadingEquipment: false,
         attemptedSubmit: false,
         
-        // Customers
+        // Customers (for old simple selection - keeping for compatibility)
         allCustomers: @json($customers ?? []),
         customerSearch: {!! json_encode($task->customer_id ? ($customers->firstWhere('id', $task->customer_id)->name ?? '') : '') !!},
         customerId: {!! json_encode(old('customer_id', $task->customer_id)) !!},
         showCustomerDropdown: false,
         loadingCustomers: false,
+        
+        // Customer and Order for customerName task type
+        customerForTaskSearch: '',
+        customersForTask: [],
+        selectedCustomerForTask: null,
+        loadingCustomerForTask: false,
+        showCustomerForTaskDropdown: false,
+        orderForTaskSearch: {!! json_encode(old('order_id', $task->order_id ?? '')) !!},
+        ordersForTask: [],
+        selectedOrderForTask: null,
+        loadingOrderForTask: false,
+        showOrderForTaskDropdown: false,
+        orderId: {!! json_encode(old('order_id', $task->order_id ?? '')) !!},
+        customerType: {!! json_encode(old('customer_type', $task->customer_type ?? 'general')) !!},
         
         // Upload Progress
         uploading: false,
@@ -1253,6 +1435,54 @@ document.addEventListener('alpine:init', () => {
             this.serviceCallOrderSearch = {!! json_encode($task->serviceCall->order_id) !!};
             await this.loadServiceCallOrder();
             @endif
+            
+            // Load existing customer and order if task type is customerName
+            @if($task->task_type === 'customerName' && $task->customer_id)
+            await this.loadExistingCustomerAndOrder();
+            @endif
+        },
+        
+        async loadExistingCustomerAndOrder() {
+            // Load customer
+            if (this.customerId) {
+                try {
+                    const customerResponse = await fetch(`/api/customers/${this.customerId}`);
+                    if (customerResponse.ok) {
+                        const customerData = await customerResponse.json();
+                        if (customerData.customer) {
+                            const customer = customerData.customer;
+                            this.selectedCustomerForTask = customer;
+                            this.customerForTaskSearch = customer.firstName + ' ' + customer.lastName;
+                            
+                            // Load orders for this customer
+                            const ordersResponse = await fetch(`/api/customers/${this.customerId}/orders`);
+                            if (ordersResponse.ok) {
+                                const ordersData = await ordersResponse.json();
+                                this.ordersForTask = ordersData.orders || [];
+                                
+                                // Find and select the existing order
+                                if (this.orderId) {
+                                    const order = this.ordersForTask.find(o => o.orderNumber === this.orderId);
+                                    if (order) {
+                                        this.selectedOrderForTask = order;
+                                        this.orderForTaskSearch = order.orderNumber;
+                                    } else {
+                                        // Order not found in customer's orders, try searching
+                                        await this.handleOrderForTaskSearch();
+                                        const searchedOrder = this.ordersForTask.find(o => o.orderNumber === this.orderId);
+                                        if (searchedOrder) {
+                                            this.selectedOrderForTask = searchedOrder;
+                                            this.orderForTaskSearch = searchedOrder.orderNumber;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to load existing customer and order:', error);
+                }
+            }
         },
         
         async loadServiceCallOrder() {
@@ -1505,7 +1735,10 @@ document.addEventListener('alpine:init', () => {
         canShowStep3() {
             if (this.taskType === 'general' && this.title) return true;
             if (this.taskType === 'equipmentId' && this.title) return true;
-            if (this.taskType === 'customerName' && this.title) return true;
+            // For customerName task type, only require customer (order is optional)
+            if (this.taskType === 'customerName') {
+                return this.selectedCustomerForTask && this.title;
+            }
             return false;
         },
         
@@ -1789,6 +2022,157 @@ document.addEventListener('alpine:init', () => {
             this.showServiceCallOrderDropdown = false;
             
             // Scroll to bottom to show customer info and Update Task button
+            setTimeout(() => {
+                window.scrollTo({
+                    top: document.body.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }, 100);
+        },
+        
+        // Customer and Order selection for customerName task type
+        async handleCustomerForTaskSearch() {
+            const searchTerm = this.customerForTaskSearch.trim();
+            
+            if (!searchTerm || searchTerm.length < 2) {
+                this.customersForTask = [];
+                this.selectedCustomerForTask = null;
+                this.customerId = '';
+                this.showCustomerForTaskDropdown = false;
+                this.orderId = '';
+                this.selectedOrderForTask = null;
+                this.ordersForTask = [];
+                this.showOrderForTaskDropdown = false;
+                return;
+            }
+            
+            this.loadingCustomerForTask = true;
+            try {
+                const response = await fetch(`/api/customers/search?q=${encodeURIComponent(searchTerm)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                this.customersForTask = data.customers || [];
+                this.showCustomerForTaskDropdown = this.customersForTask.length > 0;
+            } catch (error) {
+                console.error('Failed to search customers:', error);
+                this.customersForTask = [];
+                this.showCustomerForTaskDropdown = false;
+            } finally {
+                this.loadingCustomerForTask = false;
+            }
+        },
+        
+        async handleCustomerForTaskSelect(customer) {
+            this.selectedCustomerForTask = customer;
+            this.customerId = customer.id;
+            this.customerForTaskSearch = customer.firstName + ' ' + customer.lastName;
+            this.showCustomerForTaskDropdown = false;
+            this.title = `Task for ${customer.firstName} ${customer.lastName}`;
+            
+            // Automatically load orders for the selected customer
+            this.loadingOrderForTask = true;
+            this.showOrderForTaskDropdown = true;
+            
+            try {
+                const response = await fetch(`/api/customers/${customer.id}/orders`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                this.ordersForTask = data.orders || [];
+                
+                if (this.ordersForTask.length === 0) {
+                    this.showOrderForTaskDropdown = false;
+                }
+            } catch (error) {
+                console.error('Failed to load customer orders:', error);
+                this.ordersForTask = [];
+                this.showOrderForTaskDropdown = false;
+            } finally {
+                this.loadingOrderForTask = false;
+            }
+        },
+        
+        async handleOrderForTaskSearch() {
+            const searchTerm = this.orderForTaskSearch.trim();
+            
+            if (!searchTerm || searchTerm.length < 2) {
+                this.ordersForTask = [];
+                this.selectedOrderForTask = null;
+                this.orderId = '';
+                this.showOrderForTaskDropdown = false;
+                return;
+            }
+            
+            this.loadingOrderForTask = true;
+            try {
+                const url = `/api/orders/search?q=${encodeURIComponent(searchTerm)}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                this.ordersForTask = data.orders || [];
+                this.showOrderForTaskDropdown = this.ordersForTask.length > 0;
+            } catch (error) {
+                console.error('Failed to search orders:', error);
+                this.ordersForTask = [];
+                this.showOrderForTaskDropdown = false;
+            } finally {
+                this.loadingOrderForTask = false;
+            }
+        },
+        
+        getFilteredOrdersForTask() {
+            if (!this.selectedCustomerForTask) {
+                return this.ordersForTask;
+            }
+            
+            const customerEmail = this.selectedCustomerForTask.email.toLowerCase();
+            const customerFirstName = (this.selectedCustomerForTask.firstName || '').toLowerCase();
+            const customerLastName = (this.selectedCustomerForTask.lastName || '').toLowerCase();
+            
+            const filtered = this.ordersForTask.filter(order => {
+                const customer = order.customer;
+                if (!customer) return false;
+                
+                const orderEmail = (customer.email || '').toLowerCase();
+                const orderFirstName = (customer.firstName || '').toLowerCase();
+                const orderLastName = (customer.lastName || '').toLowerCase();
+                const orderName = (customer.name || '').toLowerCase();
+                const fullCustomerName = (customerFirstName + ' ' + customer.lastName).trim().toLowerCase();
+                
+                // Match by email or name combination
+                return orderEmail === customerEmail || 
+                       (orderFirstName === customerFirstName && orderLastName === customerLastName) ||
+                       orderName === fullCustomerName;
+            });
+            
+            return filtered;
+        },
+        
+        handleOrderForTaskSelect(order) {
+            this.selectedOrderForTask = order;
+            this.orderId = order.orderNumber;
+            this.orderForTaskSearch = order.orderNumber;
+            this.showOrderForTaskDropdown = false;
+            
+            // Update title with order info
+            if (this.selectedCustomerForTask) {
+                this.title = `Task for ${this.selectedCustomerForTask.firstName} ${this.selectedCustomerForTask.lastName} - Order ${order.orderNumber}`;
+            }
+            
+            // Scroll to bottom to show order info and Update Task button
             setTimeout(() => {
                 window.scrollTo({
                     top: document.body.scrollHeight,

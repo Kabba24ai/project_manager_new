@@ -89,6 +89,7 @@ Route::middleware('auth')->group(function () {
     
     // Customers & Orders
     Route::get('/api/customers/search', [CustomerController::class, 'search'])->name('customers.search');
+    Route::get('/api/customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
     Route::get('/api/customers/{customer}/orders', [CustomerController::class, 'getOrders'])->name('customers.orders');
     Route::get('/api/orders/search', [CustomerController::class, 'searchOrders'])->name('orders.search');
     

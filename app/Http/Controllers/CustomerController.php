@@ -263,4 +263,21 @@ class CustomerController extends Controller
         
         return response()->json(['orders' => $formattedOrders]);
     }
+    
+    public function show($id)
+    {
+        $customer = Customer::findOrFail($id);
+        
+        return response()->json([
+            'customer' => [
+                'id' => $customer->id,
+                'name' => $customer->full_name,
+                'firstName' => $customer->first_name,
+                'lastName' => $customer->last_name,
+                'company' => $customer->company_name,
+                'email' => $customer->email,
+                'phone' => $customer->phone ?? $customer->company_phone,
+            ]
+        ]);
+    }
 }

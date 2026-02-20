@@ -31,6 +31,8 @@ class Task extends Model
         'feedback',
         'equipment_id',
         'customer_id',
+        'order_id',
+        'customer_type',
     ];
 
     protected $casts = [

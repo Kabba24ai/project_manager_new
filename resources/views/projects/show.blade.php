@@ -3,7 +3,7 @@
 @section('title', 'Proj Mgr - Task' )
 
 @section('content')
-<div class="min-h-screen bg-gray-50">
+<div class="min-h-screen bg-gray-50" x-data="projectCopyLink()">
     <!-- Header -->
     <div class="bg-white border-b border-gray-200">
         <div class="max-w-6xl mx-auto px-6 py-4">
@@ -15,7 +15,18 @@
                     </a>
                     <div class="h-6 w-px bg-gray-300"></div>
                     <div class="flex items-center space-x-3">
-                        <h1 class="text-2xl font-bold text-gray-900">{{ $project->name }}</h1>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-2xl font-bold text-gray-900">{{ $project->name }}</h1>
+                            <button 
+                                type="button"
+                                @click="copyProjectLink()"
+                                class="text-blue-500 hover:text-blue-600 transition-colors relative"
+                                :title="copiedProjectLink ? 'Copied successfully' : 'Copy project view link'"
+                            >
+                                <i class="fas fa-copy text-sm" :class="copiedProjectLink ? 'text-green-500' : ''"></i>
+                                <span x-show="copiedProjectLink" x-transition class="absolute -top-8 left-1/2 transform bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">Copied successfully</span>
+                            </button>
+                        </div>
                         <span class="px-3 py-1 rounded-full text-sm font-medium {{ 
                             $project->status === 'active' ? 'bg-green-100 text-green-800' :
                             ($project->status === 'completed' ? 'bg-blue-100 text-blue-800' :
@@ -606,11 +617,13 @@
                                             <div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button 
                                                     type="button"
-                                                    onclick="copyTaskUrl('{{ route('tasks.show', $task->id) }}', event)"
-                                                    class="p-2 text-gray-400 hover:text-blue-600 transition-colors" 
-                                                    title="Copy Task URL"
+                                                    x-data="{ copiedTaskUrl: false }"
+                                                    @click="copyTaskUrl('{{ route('tasks.show', $task->id) }}', $event, $el); copiedTaskUrl = true; setTimeout(() => { copiedTaskUrl = false; }, 2000);"
+                                                    class="p-2 text-gray-400 hover:text-blue-600 transition-colors relative" 
+                                                    :title="copiedTaskUrl ? 'Copied successfully' : 'Copy Task URL'"
                                                 >
-                                                    <i class="fas fa-copy w-4 h-4"></i>
+                                                    <i class="fas fa-copy w-4 h-4" :class="copiedTaskUrl ? 'text-green-500' : ''"></i>
+                                                    <span x-show="copiedTaskUrl" x-transition class="absolute -top-8 left-1/2 transform bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50">Copied successfully</span>
                                                 </button>
                                                 <a href="{{ route('tasks.show', $task->id) }}" class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="View Task">
                                                     <i class="fas fa-eye w-4 h-4"></i>
@@ -849,11 +862,13 @@
                                 <div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button 
                                         type="button"
-                                        onclick="copyTaskUrl('{{ route('tasks.show', $task->id) }}', event)"
-                                        class="p-2 text-gray-400 hover:text-blue-600 transition-colors" 
-                                        title="Copy Task URL"
+                                        x-data="{ copiedTaskUrl: false }"
+                                        @click="copyTaskUrl('{{ route('tasks.show', $task->id) }}', $event, $el); copiedTaskUrl = true; setTimeout(() => { copiedTaskUrl = false; }, 2000);"
+                                        class="p-2 text-gray-400 hover:text-blue-600 transition-colors relative" 
+                                        :title="copiedTaskUrl ? 'Copied successfully' : 'Copy Task URL'"
                                     >
-                                        <i class="fas fa-copy w-4 h-4"></i>
+                                        <i class="fas fa-copy w-4 h-4" :class="copiedTaskUrl ? 'text-green-500' : ''"></i>
+                                        <span x-show="copiedTaskUrl" x-transition class="absolute -top-8 left-1/2 transform bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50">Copied successfully</span>
                                     </button>
                                     <a href="{{ route('tasks.show', $task->id) }}" class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="View Task">
                                         <i class="fas fa-eye w-4 h-4"></i>
@@ -1025,34 +1040,14 @@
 </style>
 @push('scripts')
 <script>
-function copyTaskUrl(url, event) {
+function copyTaskUrl(url, event, element) {
     // Convert relative URL to absolute URL
     const absoluteUrl = url.startsWith('http') ? url : window.location.origin + url;
-    
-    // Function to show success feedback
-    function showSuccessFeedback() {
-        const button = event ? event.currentTarget : null;
-        if (button) {
-            const originalTitle = button.getAttribute('title');
-            button.setAttribute('title', 'Copied!');
-            const icon = button.querySelector('i');
-            if (icon) {
-                icon.classList.remove('fa-copy');
-                icon.classList.add('fa-check', 'text-green-600');
-                
-                setTimeout(function() {
-                    button.setAttribute('title', originalTitle);
-                    icon.classList.remove('fa-check', 'text-green-600');
-                    icon.classList.add('fa-copy');
-                }, 2000);
-            }
-        }
-    }
     
     // Try modern clipboard API first
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(absoluteUrl).then(function() {
-            showSuccessFeedback();
+            // Success feedback is handled by Alpine.js in the button
         }).catch(function(err) {
             console.error('Clipboard API failed:', err);
             // Fallback to execCommand
@@ -1075,9 +1070,7 @@ function copyTaskUrl(url, event) {
         
         try {
             const successful = document.execCommand('copy');
-            if (successful) {
-                showSuccessFeedback();
-            } else {
+            if (!successful) {
                 alert('Failed to copy URL. Please try again.');
             }
         } catch (err) {
@@ -1286,6 +1279,61 @@ document.addEventListener('DOMContentLoaded', function () {
     filterProjectTasks(); // Apply filters on load (hides approved tasks by default)
     updateTaskListCounts();
 });
+
+function projectCopyLink() {
+    return {
+        copiedProjectLink: false,
+        
+        copyProjectLink() {
+            const projectUrl = window.location.href;
+            
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(projectUrl).then(() => {
+                    this.copiedProjectLink = true;
+                    setTimeout(() => {
+                        this.copiedProjectLink = false;
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                    this.fallbackCopy(projectUrl);
+                });
+            } else {
+                // Fallback for older browsers or non-HTTPS
+                this.fallbackCopy(projectUrl);
+            }
+        },
+        
+        fallbackCopy(text) {
+            // Create a temporary textarea element
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-999999px';
+            textarea.style.top = '-999999px';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    this.copiedProjectLink = true;
+                    setTimeout(() => {
+                        this.copiedProjectLink = false;
+                    }, 2000);
+                } else {
+                    alert('Failed to copy link. Please copy manually: ' + text);
+                }
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                alert('Failed to copy link. Please copy manually: ' + text);
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        }
+    };
+}
 </script>
 @endpush
 @endsection

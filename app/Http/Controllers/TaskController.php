@@ -93,7 +93,7 @@ class TaskController extends Controller
 
     public function store(Request $request, $taskListId)
     {
-        $request->validate([
+        $rules = [
             'title' => 'required|string|max:255',
             'description' => 'required|string',
             'priority' => 'nullable|in:low,medium,high,urgent',
@@ -110,7 +110,19 @@ class TaskController extends Controller
             'uploaded_files.*' => 'string',
             'service_call_type' => 'nullable|in:none,customer_damage,field_service',
             'service_call_order_id' => 'nullable|string',
-        ]);
+            'customer_id' => 'nullable|integer',
+            'order_id' => 'nullable|string',
+            'customer_type' => 'nullable|in:general,charge,refund',
+        ];
+        
+        // Require customer_id and customer_type when task_type is customerName (order_id is optional)
+        if ($request->task_type === 'customerName' || ($request->task_type === null && $task->task_type === 'customerName')) {
+            $rules['customer_id'] = 'required|integer';
+            $rules['customer_type'] = 'required|in:general,charge,refund';
+            // order_id is optional, so keep it as nullable|string
+        }
+        
+        $request->validate($rules);
 
         // Use task_list_id from request body if provided, otherwise use URL parameter
         $actualTaskListId = $request->task_list_id ?? $taskListId;
@@ -129,6 +141,9 @@ class TaskController extends Controller
             'due_date' => $request->due_date,
             'estimated_hours' => $request->estimated_hours,
             'tags' => $request->tags,
+            'customer_id' => $request->customer_id,
+            'order_id' => $request->order_id,
+            'customer_type' => $request->customer_type ?? 'general',
         ]);
 
         // Save attachments (optional)
@@ -382,7 +397,7 @@ class TaskController extends Controller
             return redirect()->back()->with('error', 'You do not have permission to update this task.');
         }
 
-        $request->validate([
+        $rules = [
             'title' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'priority' => 'nullable|in:low,medium,high,urgent',
@@ -399,7 +414,19 @@ class TaskController extends Controller
             'project_id' => 'nullable|exists:projects,id',
             'attachments' => 'nullable|array',
             'attachments.*' => 'file|max:102400|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,webm,pdf',
-        ]);
+            'customer_id' => 'nullable|integer',
+            'order_id' => 'nullable|string',
+            'customer_type' => 'nullable|in:general,charge,refund',
+        ];
+        
+        // Require customer_id and customer_type when task_type is customerName (order_id is optional)
+        if ($request->task_type === 'customerName' || ($request->task_type === null && $task->task_type === 'customerName')) {
+            $rules['customer_id'] = 'required|integer';
+            $rules['customer_type'] = 'required|in:general,charge,refund';
+            // order_id is optional, so keep it as nullable|string
+        }
+        
+        $request->validate($rules);
 
         // If moving to a different project, check access to target project
         if ($request->filled('project_id') && $request->project_id != $task->project_id) {
@@ -445,6 +472,9 @@ class TaskController extends Controller
             'feedback',
             'task_list_id',
             'project_id',
+            'customer_id',
+            'order_id',
+            'customer_type',
         ]));
 
         // Save new attachments (optional)

@@ -274,7 +274,7 @@
                         @foreach($task->comments as $comment)
                         <div class="flex space-x-4" x-data="{ 
                             isEditing: false, 
-                            editContent: '{{ addslashes($comment->content) }}',
+                            editContent: @js($comment->content),
                             isSaving: false
                         }">
                             <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
@@ -308,7 +308,7 @@
                                     
                                     <!-- View Mode -->
                                     <div x-show="!isEditing">
-                                        <p class="text-sm text-gray-700 mb-2">{{ $comment->content }}</p>
+                                        <div class="text-sm text-gray-700 mb-2 whitespace-pre-wrap">{{ $comment->content }}</div>
                                         
                                         @if($comment->attachments->count() > 0)
                                         <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -395,7 +395,7 @@
                                         ></textarea>
                                         <div class="flex items-center justify-end space-x-2 mt-2">
                                             <button 
-                                                @click="isEditing = false; editContent = '{{ addslashes($comment->content) }}'"
+                                                @click="isEditing = false; editContent = @js($comment->content)"
                                                 :disabled="isSaving"
                                                 class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
                                             >

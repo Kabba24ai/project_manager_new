@@ -433,6 +433,7 @@
                     @endphp
                     <div 
                         class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
+                        data-task-list-id="{{ $taskList->id }}"
                         x-show="!hideCompletedLists || !{{ $allTasksApproved ? 'true' : 'false' }}"
                         x-transition
                     >
@@ -483,6 +484,7 @@
                     <div 
                         x-show="expandedTaskListId === {{ $taskList->id }} && (!hideCompletedLists || !{{ $allTasksApproved ? 'true' : 'false' }})" 
                         class="bg-white rounded-lg shadow-sm border border-gray-200"
+                        data-task-list-id="{{ $taskList->id }}"
                     >
                             <!-- Task List Header -->
                             <div class="px-6 py-4 rounded-t-lg border-b border-gray-200 {{ $taskList->color }}">
@@ -722,6 +724,7 @@
                     <div 
                         class="bg-white rounded-lg shadow-sm border border-gray-200" 
                         id="task-list-{{ $taskList->id }}"
+                        data-task-list-id="{{ $taskList->id }}"
                         x-show="!hideCompletedLists || !{{ $allTasksApproved ? 'true' : 'false' }}"
                         x-transition
                     >
@@ -1264,6 +1267,77 @@ function filterProjectTasks() {
     }
 
     updateTaskListCounts();
+    hideEmptyTaskLists();
+}
+
+function hideEmptyTaskLists() {
+    // Check if any filters are active
+    const hasActiveFilters = document.getElementById('task_name_filter')?.value ||
+        document.getElementById('task_start_from')?.value ||
+        document.getElementById('task_start_to')?.value ||
+        document.getElementById('task_due_from')?.value ||
+        document.getElementById('task_due_to')?.value ||
+        document.getElementById('task_assigned_to_filter')?.value ||
+        document.getElementById('task_type_filter')?.value ||
+        document.getElementById('task_status_filter')?.value;
+    
+    // If no filters are active, show all task lists (let Alpine.js x-show handle visibility)
+    if (!hasActiveFilters) {
+        const allTaskListContainers = document.querySelectorAll('[data-task-list-id]');
+        allTaskListContainers.forEach(container => {
+            container.removeAttribute('data-filtered-out');
+            container.style.removeProperty('display');
+        });
+        return;
+    }
+    
+    // Get all unique task list IDs from task rows
+    const taskRows = Array.from(document.querySelectorAll('.project-task-row'));
+    const taskListIds = new Set();
+    
+    taskRows.forEach(row => {
+        const taskListId = row.dataset.tasklistId;
+        if (taskListId) {
+            taskListIds.add(taskListId);
+        }
+    });
+    
+    // Check each task list for visible tasks
+    taskListIds.forEach(taskListId => {
+        // Find all task rows for this task list
+        const listTaskRows = Array.from(document.querySelectorAll(`.project-task-row[data-tasklist-id="${taskListId}"]`));
+        
+        // Count visible tasks (not hidden by display:none)
+        const visibleTasks = listTaskRows.filter(row => row.style.display !== 'none');
+        
+        // Find all task list containers for this task list ID
+        const taskListContainers = document.querySelectorAll(`[data-task-list-id="${taskListId}"]`);
+        
+        taskListContainers.forEach(container => {
+            if (visibleTasks.length === 0) {
+                // No visible tasks - hide the container by setting display none with !important
+                container.style.setProperty('display', 'none', 'important');
+                container.setAttribute('data-filtered-out', 'true');
+            } else {
+                // Has visible tasks - remove the forced hide and let Alpine.js x-show handle it
+                container.removeAttribute('data-filtered-out');
+                // Remove the display property we set
+                container.style.removeProperty('display');
+            }
+        });
+    });
+    
+    // Also handle task lists that have no tasks at all (not just filtered out)
+    // This handles the case where a task list has no tasks in the database
+    const allTaskListContainers = document.querySelectorAll('[data-task-list-id]');
+    allTaskListContainers.forEach(container => {
+        const taskListId = container.getAttribute('data-task-list-id');
+        if (!taskListIds.has(taskListId)) {
+            // This task list has no tasks at all - hide it when filters are active
+            container.style.setProperty('display', 'none', 'important');
+            container.setAttribute('data-filtered-out', 'true');
+        }
+    });
 }
 
 function resetProjectTaskFilters() {

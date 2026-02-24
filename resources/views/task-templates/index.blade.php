@@ -12,6 +12,7 @@
         is_universal: false,
         task_types: []
     },
+    editorInstance: null,
     resetForm() {
         this.formData = {
             name: '',
@@ -20,6 +21,9 @@
             task_types: []
         };
         this.editingTemplate = null;
+        if (typeof templateEditor !== 'undefined' && templateEditor) {
+            templateEditor.setData('');
+        }
     },
     handleCancel() {
         this.resetForm();
@@ -34,6 +38,14 @@
             task_types: template.task_types || []
         };
         this.showAddForm = true;
+        // Set CKEditor content after form is visible and editor is initialized
+        setTimeout(() => {
+            if (typeof templateEditor !== 'undefined' && templateEditor) {
+                templateEditor.setData(template.template_text || '');
+            } else {
+                initTemplateEditor(template.template_text || '');
+            }
+        }, 100);
     },
     toggleTaskType(type) {
         const index = this.formData.task_types.indexOf(type);
@@ -74,7 +86,7 @@
         <div x-show="showAddForm" x-cloak class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 class="text-lg font-semibold text-gray-900 mb-4" x-text="editingTemplate ? 'Edit Template' : 'Add New Template'"></h2>
 
-            <form :action="editingTemplate ? '{{ url('task-templates') }}/' + editingTemplate.id : '{{ route('task-templates.store') }}'" method="POST">
+            <form :action="editingTemplate ? '{{ url('task-templates') }}/' + editingTemplate.id : '{{ route('task-templates.store') }}'" method="POST" @submit="if (typeof templateEditor !== 'undefined' && templateEditor) { document.getElementById('template_text').value = templateEditor.getData(); }">
                 @csrf
                 <input type="hidden" name="_method" x-bind:value="editingTemplate ? 'PUT' : 'POST'">
                 
@@ -98,14 +110,13 @@
                         <label for="template_text" class="block text-sm font-medium text-gray-700 mb-2">
                             Template Text *
                         </label>
+                        <div id="template_text_editor" style="min-height: 120px;"></div>
                         <textarea
                             id="template_text"
                             name="template_text"
                             x-model="formData.template_text"
-                            rows="4"
                             required
-                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
-                            placeholder="Enter the template description text (e.g., 'Order Parts', 'Contact Customer')"
+                            style="display: none;"
                         ></textarea>
                     </div>
 
@@ -269,7 +280,7 @@
                                     <i class="fas fa-file-alt w-4 h-4 text-gray-400"></i>
                                     <p class="text-gray-900 font-semibold">{{ $template->name }}</p>
                                 </div>
-                                <p class="text-sm text-gray-600 mb-2">{{ $template->template_text }}</p>
+                                <div class="text-sm text-gray-600 mb-2 template-text-display">{!! $template->template_text !!}</div>
                                 <div class="flex items-center space-x-4 text-sm text-gray-500">
                                     @if($template->is_universal)
                                     <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
@@ -329,5 +340,194 @@
         @endif
     </div>
 </div>
-@endsection
 
+<style>
+/* CKEditor height */
+.ck-editor__editable {
+    min-height: 120px !important;
+    max-height: 300px !important;
+}
+
+/* CKEditor link color */
+.ck-editor__editable a {
+    color: #2563eb !important;
+    text-decoration: underline !important;
+}
+
+.ck-editor__editable a:hover {
+    color: #1d4ed8 !important;
+}
+
+/* Template text display styling - match task description styles */
+.template-text-display {
+    line-height: 1.6;
+}
+
+.template-text-display p {
+    margin-bottom: 0.5em;
+}
+
+.template-text-display p:last-child {
+    margin-bottom: 0;
+}
+
+.template-text-display a {
+    color: #2563eb;
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+.template-text-display a:hover {
+    color: #1d4ed8;
+}
+
+.template-text-display ul,
+.template-text-display ol {
+    margin-left: 1.5em;
+    margin-bottom: 0.5em;
+}
+
+.template-text-display li {
+    margin-bottom: 0.25em;
+}
+
+.template-text-display h1,
+.template-text-display h2,
+.template-text-display h3,
+.template-text-display h4,
+.template-text-display h5,
+.template-text-display h6 {
+    font-weight: 600;
+    margin-top: 0.75em;
+    margin-bottom: 0.5em;
+}
+
+.template-text-display h1 {
+    font-size: 1.5em;
+}
+
+.template-text-display h2 {
+    font-size: 1.3em;
+}
+
+.template-text-display h3 {
+    font-size: 1.1em;
+}
+
+.template-text-display strong,
+.template-text-display b {
+    font-weight: 600;
+}
+
+.template-text-display em,
+.template-text-display i {
+    font-style: italic;
+}
+
+.template-text-display blockquote {
+    border-left: 4px solid #e5e7eb;
+    padding-left: 1em;
+    margin-left: 0;
+    margin-bottom: 0.5em;
+    color: #6b7280;
+}
+
+.template-text-display table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 0.5em;
+}
+
+.template-text-display table th,
+.template-text-display table td {
+    border: 1px solid #e5e7eb;
+    padding: 0.5em;
+    text-align: left;
+}
+
+.template-text-display table th {
+    background-color: #f9fafb;
+    font-weight: 600;
+}
+</style>
+
+<!-- CKEditor 5 CDN -->
+<script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
+<script>
+let templateEditor = null;
+
+function initTemplateEditor(initialData = '') {
+    if (templateEditor) {
+        templateEditor.setData(initialData);
+        return;
+    }
+    
+    ClassicEditor
+        .create(document.querySelector('#template_text_editor'), {
+            toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'blockQuote', 'insertTable', '|', 'undo', 'redo'],
+            placeholder: 'Enter the template description text...',
+            link: {
+                defaultProtocol: 'https://',
+                decorators: {
+                    openInNewTab: {
+                        mode: 'manual',
+                        label: 'Open in a new tab',
+                        attributes: {
+                            target: '_blank',
+                            rel: 'noopener noreferrer'
+                        }
+                    }
+                }
+            }
+        })
+        .then(editor => {
+            templateEditor = editor;
+            
+            if (initialData) {
+                editor.setData(initialData);
+            }
+            
+            // Sync CKEditor content to the hidden textarea on every change
+            editor.model.document.on('change:data', () => {
+                const data = editor.getData();
+                document.getElementById('template_text').value = data;
+                
+                // Update Alpine.js data
+                const alpineComponent = document.querySelector('[x-data*="showAddForm"]');
+                if (alpineComponent && window.Alpine) {
+                    Alpine.$data(alpineComponent).formData.template_text = data;
+                }
+            });
+            
+            // Set height
+            const editableElement = editor.ui.view.editable.element;
+            if (editableElement) {
+                editableElement.style.minHeight = '120px';
+            }
+        })
+        .catch(error => {
+            console.error('CKEditor initialization error:', error);
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Watch for the form to become visible using Alpine.js event
+    document.addEventListener('alpine:initialized', () => {
+        const alpineComponent = document.querySelector('[x-data*="showAddForm"]');
+        if (alpineComponent && window.Alpine) {
+            const alpineData = Alpine.$data(alpineComponent);
+            
+            // Override showAddForm setter to init editor when form opens
+            Alpine.$data(alpineComponent).$watch('showAddForm', (value) => {
+                if (value) {
+                    setTimeout(() => {
+                        const currentData = Alpine.$data(alpineComponent).formData.template_text || '';
+                        initTemplateEditor(currentData);
+                    }, 50);
+                }
+            });
+        }
+    });
+});
+</script>
+@endsection

@@ -250,14 +250,13 @@
                     this.expandedTaskListId = null;
                 } else {
                     this.expandedTaskListId = taskListId;
-                    // Scroll to the expanded task list section and apply filters
+                    // Scroll to the expanded task list section
                     setTimeout(() => {
                         const expandedSection = document.getElementById('expanded-task-lists-section');
                         if (expandedSection) {
                             expandedSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         }
-                        // Apply filters to newly visible tasks
-                        filterProjectTasks();
+                        // Don't call filterProjectTasks() here - it would close the expanded section
                     }, 100);
                 }
             }
@@ -482,9 +481,9 @@
                         });
                     @endphp
                     <div 
-                        x-show="expandedTaskListId === {{ $taskList->id }} && (!hideCompletedLists || !{{ $allTasksApproved ? 'true' : 'false' }})" 
-                        class="bg-white rounded-lg shadow-sm border border-gray-200"
-                        data-task-list-id="{{ $taskList->id }}"
+                        x-show="expandedTaskListId === {{ $taskList->id }}" 
+                        x-cloak
+                        class="bg-white rounded-lg shadow-sm border border-gray-200 task-list-expanded"
                     >
                             <!-- Task List Header -->
                             <div class="px-6 py-4 rounded-t-lg border-b border-gray-200 {{ $taskList->color }}">
@@ -1170,6 +1169,25 @@ function filterProjectTasks() {
     const taskStatus = document.getElementById('task_status_filter')?.value || '';
     const sortBy = document.getElementById('task_sort_filter')?.value || '';
 
+    // Check if any filters are active
+    const hasActiveFilters = q || startFrom || startTo || dueFrom || dueTo || assignedTo || taskType || taskStatus;
+    
+    // If filters are active, close the expanded section
+    if (hasActiveFilters) {
+        // Find the Alpine component and set expandedTaskListId to null
+        const alpineComponent = document.querySelector('[x-data*="expandedTaskListId"]');
+        if (alpineComponent && window.Alpine) {
+            try {
+                const alpineData = window.Alpine.$data(alpineComponent);
+                if (alpineData) {
+                    alpineData.expandedTaskListId = null;
+                }
+            } catch (e) {
+                console.warn('Could not close expanded section:', e);
+            }
+        }
+    }
+
     let rows = Array.from(document.querySelectorAll('.project-task-row'));
     
     // Filter rows
@@ -1288,6 +1306,7 @@ function hideEmptyTaskLists() {
             container.removeAttribute('data-filtered-out');
             container.style.removeProperty('display');
         });
+        // Note: We don't touch .task-list-expanded - Alpine.js x-show handles them
         return;
     }
     
@@ -1338,6 +1357,8 @@ function hideEmptyTaskLists() {
             container.setAttribute('data-filtered-out', 'true');
         }
     });
+    
+    // Note: We don't hide .task-list-expanded divs here - Alpine.js x-show handles them completely
 }
 
 function resetProjectTaskFilters() {

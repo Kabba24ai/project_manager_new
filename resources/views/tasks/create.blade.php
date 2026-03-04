@@ -692,7 +692,7 @@
                                     Attached Files (<span x-text="attachments.length"></span>)
                                 </h3>
                                 <div class="space-y-2">
-                                    <template x-for="(file, index) in attachments" :key="index">
+                                    <template x-for="(file, index) in attachments" :key="file.id || index">
                                         <div class="p-3 bg-gray-50 rounded-lg border" :class="file.error ? 'border-red-300 bg-red-50' : 'border-gray-200'">
                                             <div class="flex items-center justify-between mb-2">
                                                 <div class="flex items-center space-x-3 flex-1 min-w-0">
@@ -1577,9 +1577,13 @@ function taskForm() {
                     continue;
                 }
                 
-                // Add file to attachments with uploading status
+                // Generate a unique ID for this file entry
+                const fileId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                
+                // Add file to attachments list immediately
                 const fileObj = {
-                    file: file, // Keep original file for fallback
+                    id: fileId,
+                    file: file,
                     name: file.name,
                     size: file.size,
                     type: file.type,
@@ -1590,16 +1594,15 @@ function taskForm() {
                     tempId: null
                 };
                 this.attachments.push(fileObj);
-                const fileIndex = this.attachments.length - 1;
                 
-                // Upload file immediately
-                this.uploadFile(file, fileIndex);
+                // Upload files one at a time (sequential) to avoid PHP session lock conflicts
+                await this.uploadFileAsync(file, fileId);
             }
             
             // Reset file input
             event.target.value = '';
             
-            // Scroll to bottom to show the "Create Task" button
+            // Scroll to bottom to show the Save buttons
             setTimeout(() => {
                 window.scrollTo({
                     top: document.body.scrollHeight,
@@ -1608,52 +1611,64 @@ function taskForm() {
             }, 100);
         },
         
-        uploadFile(file, fileIndex) {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
-            
-            const xhr = new XMLHttpRequest();
-            
-            // Track upload progress
-            xhr.upload.addEventListener('progress', (e) => {
-                if (e.lengthComputable) {
-                    const percentComplete = Math.round((e.loaded / e.total) * 100);
-                    this.attachments[fileIndex].progress = percentComplete;
-                }
-            });
-            
-            // Handle completion
-            xhr.addEventListener('load', () => {
-                if (xhr.status === 200) {
-                    try {
-                        const response = JSON.parse(xhr.responseText);
-                        this.attachments[fileIndex].uploading = false;
-                        this.attachments[fileIndex].uploaded = true;
-                        this.attachments[fileIndex].tempId = response.tempId;
-                        this.uploadedFiles.push(response.tempId);
-                    } catch (error) {
-                        console.error('Upload response error:', error);
-                        this.attachments[fileIndex].uploading = false;
-                        this.attachments[fileIndex].error = true;
+        uploadFileAsync(file, fileId) {
+            return new Promise((resolve) => {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+                
+                const xhr = new XMLHttpRequest();
+                
+                // Track upload progress using findIndex for reliable Alpine.js reactivity
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded / e.total) * 100);
+                        const idx = this.attachments.findIndex(f => f.id === fileId);
+                        if (idx !== -1) this.attachments[idx].progress = percentComplete;
                     }
-                } else {
-                    console.error('Upload failed:', xhr.status);
-                    this.attachments[fileIndex].uploading = false;
-                    this.attachments[fileIndex].error = true;
-                }
+                });
+                
+                // Handle completion
+                xhr.addEventListener('load', () => {
+                    const idx = this.attachments.findIndex(f => f.id === fileId);
+                    if (idx === -1) { resolve(); return; } // File was removed
+                    
+                    if (xhr.status === 200) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            this.attachments[idx].uploading = false;
+                            this.attachments[idx].uploaded = true;
+                            this.attachments[idx].tempId = response.tempId;
+                            this.uploadedFiles.push(response.tempId);
+                        } catch (error) {
+                            console.error('Upload response error:', error, xhr.responseText);
+                            this.attachments[idx].uploading = false;
+                            this.attachments[idx].error = true;
+                        }
+                    } else {
+                        console.error('Upload failed:', xhr.status, xhr.responseText);
+                        this.attachments[idx].uploading = false;
+                        this.attachments[idx].error = true;
+                    }
+                    resolve();
+                });
+                
+                // Handle network errors
+                xhr.addEventListener('error', () => {
+                    console.error('Upload network error');
+                    const idx = this.attachments.findIndex(f => f.id === fileId);
+                    if (idx !== -1) {
+                        this.attachments[idx].uploading = false;
+                        this.attachments[idx].error = true;
+                    }
+                    resolve();
+                });
+                
+                // Send request
+                xhr.open('POST', '/api/upload-temp-file', true);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                xhr.send(formData);
             });
-            
-            // Handle errors
-            xhr.addEventListener('error', () => {
-                console.error('Upload error');
-                this.attachments[fileIndex].uploading = false;
-                this.attachments[fileIndex].error = true;
-            });
-            
-            // Send request
-            xhr.open('POST', '/api/upload-temp-file', true);
-            xhr.send(formData);
         },
         
         removeAttachment(index) {

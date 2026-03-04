@@ -449,8 +449,8 @@ class TaskController extends Controller
             $settings = $project->settings ?? [];
             $requireApproval = $settings['requireApproval'] ?? false;
 
-            if ($requireApproval) {
-                // Only project manager can approve when requireApproval is true
+            if ($requireApproval && !$isMasterAdmin) {
+                // Only project manager (or master admin) can approve when requireApproval is true
                 if (Auth::id() !== $project->project_manager_id) {
                     return redirect()->back()->with('error', 'Only the project manager can approve tasks for this project.');
                 }
@@ -550,8 +550,8 @@ class TaskController extends Controller
             $settings = $project->settings ?? [];
             $requireApproval = $settings['requireApproval'] ?? false;
 
-            if ($requireApproval) {
-                // Only project manager can approve when requireApproval is true
+            if ($requireApproval && !$isMasterAdmin) {
+                // Only project manager (or master admin) can approve when requireApproval is true
                 if (Auth::id() !== $project->project_manager_id) {
                     if ($request->expectsJson()) {
                         return response()->json([

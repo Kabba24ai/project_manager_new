@@ -629,7 +629,7 @@
                                                 <a href="{{ route('tasks.show', $task->id) }}" class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="View Task">
                                                     <i class="fas fa-eye w-4 h-4"></i>
                                                 </a>
-                                                @if($canEdit && $task->created_by === Auth::id())
+                                                @if($isMasterAdmin || ($canEdit && $task->created_by === Auth::id()))
                                                 <a href="{{ route('tasks.edit', $task->id) }}" class="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="Edit Task">
                                                     <i class="fas fa-edit w-4 h-4"></i>
                                                 </a>
@@ -875,7 +875,7 @@
                                     <a href="{{ route('tasks.show', $task->id) }}" class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="View Task">
                                         <i class="fas fa-eye w-4 h-4"></i>
                                     </a>
-                                    @if($canEdit && $task->created_by === Auth::id())
+                                    @if($isMasterAdmin || ($canEdit && $task->created_by === Auth::id()))
                                     <a href="{{ route('tasks.edit', $task->id) }}" class="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="Edit Task">
                                         <i class="fas fa-edit w-4 h-4"></i>
                                     </a>

@@ -247,6 +247,7 @@ class AttachmentController extends Controller
             'size' => $file->getSize(),
         ];
         session(['temp_uploads' => $tempFiles]);
+        session()->save(); // Release session lock early so concurrent uploads don't block each other
 
         return response()->json([
             'success' => true,

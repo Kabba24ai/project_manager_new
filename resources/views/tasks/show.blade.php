@@ -223,7 +223,7 @@
                             // Check if user can approve tasks for this project
                             $projectSettings = $task->project->settings ?? [];
                             $requireApproval = $projectSettings['requireApproval'] ?? false;
-                            $canApprove = !$requireApproval || (auth()->id() === $task->project->project_manager_id);
+                            $canApprove = !$requireApproval || $isMasterAdmin || (auth()->id() === $task->project->project_manager_id);
                         @endphp
                         
                         @foreach($statuses as $status)

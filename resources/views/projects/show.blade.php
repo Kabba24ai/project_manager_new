@@ -16,7 +16,7 @@
                     <div class="h-6 w-px bg-gray-300"></div>
                     <div class="flex items-center space-x-3">
                         <div class="flex items-center gap-2">
-                            <h1 class="text-2xl font-bold text-gray-900">{{ $project->name }}</h1>
+                        <h1 class="text-2xl font-bold text-gray-900">{{ $project->name }}</h1>
                             <button 
                                 type="button"
                                 @click="copyProjectLink()"
@@ -366,7 +366,7 @@
                         <option value="{{ $member->id }}">{{ $member->first_name }} {{ $member->last_name }}</option>
                         @endforeach
                     </select>
-                </div>
+        </div>
 
                 <!-- Task Type Filter -->
                 <div class="flex-1">
@@ -429,11 +429,12 @@
                         $allTasksApproved = $taskList->tasks->count() > 0 && $taskList->tasks->every(function($task) {
                             return $task->task_status === 'approved';
                         });
+                        $shouldHideList = $taskList->tasks->count() === 0 || $allTasksApproved;
                     @endphp
                     <div 
                         class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
                         data-task-list-id="{{ $taskList->id }}"
-                        x-show="!hideCompletedLists || !{{ $allTasksApproved ? 'true' : 'false' }}"
+                        x-show="!hideCompletedLists || !{{ $shouldHideList ? 'true' : 'false' }}"
                         x-transition
                     >
                         <!-- Header with colored background -->
@@ -485,16 +486,16 @@
                         x-cloak
                         class="bg-white rounded-lg shadow-sm border border-gray-200 task-list-expanded"
                     >
-                            <!-- Task List Header -->
-                            <div class="px-6 py-4 rounded-t-lg border-b border-gray-200 {{ $taskList->color }}">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <h2 class="text-xl font-semibold text-gray-900">{{ $taskList->name }}</h2>
-                                        @if($taskList->description)
-                                        <p class="text-sm text-gray-600 mt-1">{{ $taskList->description }}</p>
-                                        @endif
-                                    </div>
-                                    <div class="flex items-center space-x-3">
+                <!-- Task List Header -->
+                <div class="px-6 py-4 rounded-t-lg border-b border-gray-200 {{ $taskList->color }}">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-900">{{ $taskList->name }}</h2>
+                            @if($taskList->description)
+                            <p class="text-sm text-gray-600 mt-1">{{ $taskList->description }}</p>
+                            @endif
+                        </div>
+                        <div class="flex items-center space-x-3">
                                         <label class="flex items-center space-x-2 px-3 py-1 cursor-pointer transition-colors">
                                             <input 
                                                 type="checkbox" 
@@ -504,118 +505,118 @@
                                             >
                                             <span class="text-sm font-medium text-gray-700">Show Approved</span>
                                         </label>
-                                        <a href="{{ route('tasks.create', $project->id) }}?task_list_id={{ $taskList->id }}" class="flex items-center space-x-1 px-3 py-1 bg-white text-gray-700 rounded-lg hover:bg-green-50 transition-colors border border-gray-200 text-sm font-medium" title="Add task to {{ $taskList->name }}">
-                                            <i class="fas fa-plus w-4 h-4"></i>
-                                            <span>Add Task</span>
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
+                            <a href="{{ route('tasks.create', $project->id) }}?task_list_id={{ $taskList->id }}" class="flex items-center space-x-1 px-3 py-1 bg-white text-gray-700 rounded-lg hover:bg-green-50 transition-colors border border-gray-200 text-sm font-medium" title="Add task to {{ $taskList->name }}">
+                                <i class="fas fa-plus w-4 h-4"></i>
+                                <span>Add Task</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
 
-                            <!-- Tasks -->
-                            <div class="divide-y divide-gray-100" data-tasklist-id="{{ $taskList->id }}">
+                <!-- Tasks -->
+                <div class="divide-y divide-gray-100" data-tasklist-id="{{ $taskList->id }}">
                                 @if($taskList->tasks->count() > 0)
                                     @php
                                         $priorityOrder = ['urgent' => 0, 'high' => 1, 'medium' => 2, 'low' => 3];
                                         $sortedTasks = $taskList->tasks->sortBy(function($task) use ($priorityOrder) {
                                             return $priorityOrder[$task->priority ?? 'medium'] ?? 2;
-                                        });
-                                    @endphp
-                                    @foreach($sortedTasks as $task)
-                                    <div
-                                        class="px-6 py-4 hover:bg-gray-50 transition-colors group project-task-row"
-                                        data-tasklist-id="{{ $taskList->id }}"
-                                        data-title="{{ strtolower($task->title) }}"
-                                        data-start-date="{{ $task->start_date ? \Carbon\Carbon::parse($task->start_date)->format('Y-m-d') : '' }}"
-                                        data-due-date="{{ $task->due_date ? \Carbon\Carbon::parse($task->due_date)->format('Y-m-d') : '' }}"
+                        });
+                    @endphp
+                        @foreach($sortedTasks as $task)
+                        <div
+                            class="px-6 py-4 hover:bg-gray-50 transition-colors group project-task-row"
+                            data-tasklist-id="{{ $taskList->id }}"
+                            data-title="{{ strtolower($task->title) }}"
+                            data-start-date="{{ $task->start_date ? \Carbon\Carbon::parse($task->start_date)->format('Y-m-d') : '' }}"
+                            data-due-date="{{ $task->due_date ? \Carbon\Carbon::parse($task->due_date)->format('Y-m-d') : '' }}"
                                         data-assigned-to="{{ $task->assigned_to ?? '' }}"
                                         data-task-type="{{ $task->task_type ?? 'general' }}"
                                         data-task-status="{{ $task->task_status ?? 'pending' }}"
                                         data-priority="{{ $task->priority ?? 'medium' }}"
-                                    >
+                        >
                                         <div class="flex items-center justify-between relative">
                                             <div class="flex items-center space-x-4 flex-1 min-w-0">
-                                                <div class="flex-shrink-0">
-                                                    <span class="text-lg">
-                                                        @if($task->task_type === 'general')📝
-                                                        @elseif($task->task_type === 'equipmentId')🔧
-                                                        @elseif($task->task_type === 'customerName')👤
-                                                        @else📝
-                                                        @endif
-                                                    </span>
-                                                </div>
-                                                
-                                                <div class="flex-1 min-w-0">
+                                    <div class="flex-shrink-0">
+                                        <span class="text-lg">
+                                            @if($task->task_type === 'general')📝
+                                            @elseif($task->task_type === 'equipmentId')🔧
+                                            @elseif($task->task_type === 'customerName')👤
+                                            @else📝
+                                            @endif
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="flex-1 min-w-0">
                                                     <div class="flex items-center justify-between mb-2">
-                                                        <h3 class="text-base font-medium text-gray-900">{{ $task->title }}</h3>
+                                            <h3 class="text-base font-medium text-gray-900">{{ $task->title }}</h3>
                                                         <div class="flex items-center space-x-2 absolute right-0 top-0">
-                                                            <span class="px-2 py-1 rounded-full text-xs font-medium border flex-shrink-0 {{ 
-                                                                $task->priority === 'urgent' ? 'bg-red-100 text-red-800 border-red-200' :
-                                                                ($task->priority === 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' :
-                                                                ($task->priority === 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'))
-                                                            }}">
-                                                                {{ ucfirst($task->priority) }}
-                                                            </span>
-                                                            <span class="px-2 py-1 rounded-full text-xs font-medium border flex-shrink-0 {{ 
-                                                                $task->task_status === 'pending' ? 'bg-gray-500 text-white border-gray-600' :
-                                                                ($task->task_status === 'in_progress' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                                                                ($task->task_status === 'completed_pending_review' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                                                                ($task->task_status === 'approved' ? 'bg-green-100 text-green-800 border-green-200' :
-                                                                ($task->task_status === 'unapproved' ? 'bg-red-100 text-red-800 border-red-200' :
-                                                                ($task->task_status === 'deployed' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-gray-100 text-gray-800 border-gray-200')))))
-                                                            }}">
-                                                                @if($task->task_status === 'completed_pending_review')
-                                                                    Review
-                                                                @else
-                                                                    {{ ucfirst(str_replace('_', ' ', $task->task_status)) }}
-                                                                @endif
-                                                            </span>
-                                                        </div>
+                                            <span class="px-2 py-1 rounded-full text-xs font-medium border flex-shrink-0 {{ 
+                                                $task->priority === 'urgent' ? 'bg-red-100 text-red-800 border-red-200' :
+                                                ($task->priority === 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' :
+                                                ($task->priority === 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'))
+                                            }}">
+                                                {{ ucfirst($task->priority) }}
+                                            </span>
+                                            <span class="px-2 py-1 rounded-full text-xs font-medium border flex-shrink-0 {{ 
+                                                $task->task_status === 'pending' ? 'bg-gray-500 text-white border-gray-600' :
+                                                ($task->task_status === 'in_progress' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                                                ($task->task_status === 'completed_pending_review' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                                                ($task->task_status === 'approved' ? 'bg-green-100 text-green-800 border-green-200' :
+                                                ($task->task_status === 'unapproved' ? 'bg-red-100 text-red-800 border-red-200' :
+                                                ($task->task_status === 'deployed' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-gray-100 text-gray-800 border-gray-200')))))
+                                            }}">
+                                                @if($task->task_status === 'completed_pending_review')
+                                                    Review
+                                                @else
+                                                    {{ ucfirst(str_replace('_', ' ', $task->task_status)) }}
+                                                @endif
+                                            </span>
+                                        </div>
                                                     </div>
                                                     <div class="text-sm text-gray-600 mb-2 task-description-preview">
                                                         {!! $task->description ?: '' !!}
                                                     </div>
-                                                    
-                                                    <div class="flex items-center space-x-4 text-xs text-gray-500">
-                                                        @if($task->assignedUser)
-                                                        <div class="flex items-center space-x-2">
-                                                            <div class="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
-                                                                <span class="text-xs font-medium text-blue-600">{{ strtoupper(substr($task->assignedUser->name, 0, 2)) }}</span>
-                                                            </div>
-                                                            <span>{{ $task->assignedUser->name }}</span>
-                                                        </div>
-                                                        @else
+                                        
+                                        <div class="flex items-center space-x-4 text-xs text-gray-500">
+                                            @if($task->assignedUser)
+                                            <div class="flex items-center space-x-2">
+                                                <div class="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
+                                                    <span class="text-xs font-medium text-blue-600">{{ strtoupper(substr($task->assignedUser->name, 0, 2)) }}</span>
+                                                </div>
+                                                <span>{{ $task->assignedUser->name }}</span>
+                                            </div>
+                                            @else
                                                         @if($task->created_by === Auth::id())
                                                         <a href="{{ route('tasks.edit', $task->id) }}" onclick="event.stopPropagation()" class="flex items-center space-x-1 text-gray-500 hover:text-blue-600 transition-colors">
-                                                            <i class="fas fa-users w-4 h-4"></i>
-                                                            <span class="underline">Unassigned</span>
+                                                <i class="fas fa-users w-4 h-4"></i>
+                                                <span class="underline">Unassigned</span>
                                                         </a>
                                                         @else
                                                         <div class="flex items-center space-x-1 text-gray-400 cursor-not-allowed">
                                                             <i class="fas fa-users w-4 h-4"></i>
                                                             <span>Unassigned</span>
-                                                        </div>
+                                            </div>
                                                         @endif
-                                                        @endif
-                                                        
-                                                        @if($task->due_date)
-                                                        <div class="flex items-center space-x-1 {{ \Carbon\Carbon::parse($task->due_date)->isPast() && $task->status !== 'Done' ? 'text-red-600' : '' }}">
-                                                            <i class="fas fa-calendar w-3 h-3"></i>
-                                                            <span>Due: {{ \Carbon\Carbon::parse($task->due_date)->format('M j') }}</span>
-                                                        </div>
-                                                        @endif
-                                                        
-                                                        @if($task->comments->count() > 0)
-                                                        <div class="flex items-center space-x-1">
-                                                            <i class="fas fa-comment w-3 h-3"></i>
-                                                            <span>{{ $task->comments->count() }}</span>
-                                                        </div>
-                                                        @endif
-                                                    </div>  
-                                                </div>
+                                            @endif
+                                            
+                                            @if($task->due_date)
+                                            <div class="flex items-center space-x-1 {{ \Carbon\Carbon::parse($task->due_date)->isPast() && $task->status !== 'Done' ? 'text-red-600' : '' }}">
+                                                <i class="fas fa-calendar w-3 h-3"></i>
+                                                <span>Due: {{ \Carbon\Carbon::parse($task->due_date)->format('M j') }}</span>
+                                            </div>
+                                            @endif
+                                            
+                                            @if($task->comments->count() > 0)
+                                            <div class="flex items-center space-x-1">
+                                                <i class="fas fa-comment w-3 h-3"></i>
+                                                <span>{{ $task->comments->count() }}</span>
+                                            </div>
+                                            @endif
+                                        </div>
+                                    </div>
                                             </div>
 
-                                            <div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button 
                                                     type="button"
                                                     x-data="{ copiedTaskUrl: false }"
@@ -626,74 +627,38 @@
                                                     <i class="fas fa-copy w-4 h-4" :class="copiedTaskUrl ? 'text-green-500' : ''"></i>
                                                     <span x-show="copiedTaskUrl" x-transition class="absolute -top-8 left-1/2 transform bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50">Copied successfully</span>
                                                 </button>
-                                                <a href="{{ route('tasks.show', $task->id) }}" class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="View Task">
-                                                    <i class="fas fa-eye w-4 h-4"></i>
-                                                </a>
+                                    <a href="{{ route('tasks.show', $task->id) }}" class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="View Task">
+                                        <i class="fas fa-eye w-4 h-4"></i>
+                                    </a>
                                                 @if($isMasterAdmin || ($canEdit && $task->created_by === Auth::id()))
-                                                <a href="{{ route('tasks.edit', $task->id) }}" class="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="Edit Task">
-                                                    <i class="fas fa-edit w-4 h-4"></i>
-                                                </a>
-                                                <div class="relative" x-data="{ open: false }">
-                                                    <button @click="open = !open" class="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="More Options">
-                                                        <i class="fas fa-ellipsis-v w-4 h-4"></i>
-                                                    </button>
+                                    <a href="{{ route('tasks.edit', $task->id) }}" class="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="Edit Task">
+                                        <i class="fas fa-edit w-4 h-4"></i>
+                                    </a>
+                                                <div class="relative" x-data="{ open: false, loaded: false }" x-effect="if (open && !loaded) { $el.querySelector('.move-to-content').innerHTML = buildMoveToDropdown({{ $task->id }}, {{ $task->task_list_id }}); loaded = true; }">
+                                        <button @click="open = !open" class="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="More Options">
+                                            <i class="fas fa-ellipsis-v w-4 h-4"></i>
+                                        </button>
 
                                                     <div x-show="open" @click.away="open = false" x-cloak class="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[250px] max-h-[400px] overflow-y-auto">
                                                         <div class="px-3 py-2 text-xs text-gray-500 font-medium border-b border-gray-100 sticky top-0 bg-white">Move to:</div>
-                                                        
-                                                        @foreach($allProjects as $targetProject)
-                                                            <div class="border-b border-gray-100 last:border-0">
-                                                                <!-- Project Name Header -->
-                                                                <div class="px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-700 sticky top-8">
-                                                                    {{ $targetProject->name }}
-                                                                    @if($targetProject->id === $project->id)
-                                                                        <span class="text-blue-600">(Current)</span>
-                                                                    @endif
-                                                                </div>
-                                                                
-                                                                <!-- Task Lists for this Project -->
-                                                                @if($targetProject->taskLists->count() > 0)
-                                                                    @foreach($targetProject->taskLists as $targetList)
-                                                                        <form action="{{ route('tasks.update', $task->id) }}" method="POST" class="inline w-full">
-                                                                            @csrf
-                                                                            @method('PUT')
-                                                                            <input type="hidden" name="task_list_id" value="{{ $targetList->id }}">
-                                                                            <input type="hidden" name="project_id" value="{{ $targetProject->id }}">
-                                                                            <button 
-                                                                                type="submit" 
-                                                                                class="w-full px-6 py-2 text-left text-sm hover:bg-gray-50 {{ $task->task_list_id === $targetList->id ? 'text-blue-600 bg-blue-50 font-medium' : 'text-gray-700' }}" 
-                                                                                {{ $task->task_list_id === $targetList->id ? 'disabled' : '' }}
-                                                                                onclick="return confirm('Move this task to {{ $targetProject->name }} - {{ $targetList->name }}?')"
-                                                                            >
-                                                                                <span class="inline-block w-3 h-3 rounded-full mr-2" style="background-color: {{ $targetList->color ?? '#6B7280' }};"></span>
-                                                                                {{ $targetList->name }}
-                                                                                @if($task->task_list_id === $targetList->id)
-                                                                                    <span class="ml-2">✓</span>
-                                                                                @endif
-                                                                            </button>
-                                                                        </form>
-                                                                    @endforeach
-                                                                @else
-                                                                    <div class="px-6 py-2 text-xs text-gray-400 italic">No task lists</div>
-                                                                @endif
-                                                            </div>
-                                                        @endforeach
-                                                        
+                                                        <div class="move-to-content">
+                                                            <div class="px-3 py-4 text-center text-sm text-gray-400">Loading...</div>
+                                                        </div>
                                                         <div class="border-t border-gray-100 mt-1"></div>
                                                         <form action="{{ route('tasks.destroy', $task->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this task?');">
-                                                            @csrf
+                                                @csrf
                                                             @method('DELETE')
                                                             <button type="submit" class="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">
                                                                 <i class="fas fa-trash mr-2"></i>Delete Task
-                                                            </button>
-                                                        </form>
+                                                </button>
+                                            </form>
                                                     </div>
                                                 </div>
                                                 @endif
                                             </div>
                                         </div>
                                     </div>
-                                    @endforeach
+                                            @endforeach
                                 @else
                                 <div class="px-6 py-12 text-center text-gray-500">
                                     <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -719,12 +684,13 @@
                         $allTasksApproved = $taskList->tasks->count() > 0 && $taskList->tasks->every(function($task) {
                             return $task->task_status === 'approved';
                         });
+                        $shouldHideList = $taskList->tasks->count() === 0 || $allTasksApproved;
                     @endphp
                     <div 
                         class="bg-white rounded-lg shadow-sm border border-gray-200" 
                         id="task-list-{{ $taskList->id }}"
                         data-task-list-id="{{ $taskList->id }}"
-                        x-show="!hideCompletedLists || !{{ $allTasksApproved ? 'true' : 'false' }}"
+                        x-show="!hideCompletedLists || !{{ $shouldHideList ? 'true' : 'false' }}"
                         x-transition
                     >
                         <!-- Task List Header -->
@@ -879,52 +845,16 @@
                                     <a href="{{ route('tasks.edit', $task->id) }}" class="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="Edit Task">
                                         <i class="fas fa-edit w-4 h-4"></i>
                                     </a>
-                                    <div class="relative" x-data="{ open: false }">
+                                    <div class="relative" x-data="{ open: false, loaded: false }" x-effect="if (open && !loaded) { $el.querySelector('.move-to-content').innerHTML = buildMoveToDropdown({{ $task->id }}, {{ $task->task_list_id }}); loaded = true; }">
                                         <button @click="open = !open" class="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="More Options">
                                             <i class="fas fa-ellipsis-v w-4 h-4"></i>
                                         </button>
 
                                         <div x-show="open" @click.away="open = false" x-cloak class="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[250px] max-h-[400px] overflow-y-auto">
                                             <div class="px-3 py-2 text-xs text-gray-500 font-medium border-b border-gray-100 sticky top-0 bg-white">Move to:</div>
-                                            
-                                            @foreach($allProjects as $targetProject)
-                                                <div class="border-b border-gray-100 last:border-0">
-                                                    <!-- Project Name Header -->
-                                                    <div class="px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-700 sticky top-8">
-                                                        {{ $targetProject->name }}
-                                                        @if($targetProject->id === $project->id)
-                                                            <span class="text-blue-600">(Current)</span>
-                                                        @endif
-                                                    </div>
-                                                    
-                                                    <!-- Task Lists for this Project -->
-                                                    @if($targetProject->taskLists->count() > 0)
-                                                        @foreach($targetProject->taskLists as $targetList)
-                                                            <form action="{{ route('tasks.update', $task->id) }}" method="POST" class="inline w-full">
-                                                                @csrf
-                                                                @method('PUT')
-                                                                <input type="hidden" name="task_list_id" value="{{ $targetList->id }}">
-                                                                <input type="hidden" name="project_id" value="{{ $targetProject->id }}">
-                                                                <button 
-                                                                    type="submit" 
-                                                                    class="w-full px-6 py-2 text-left text-sm hover:bg-gray-50 {{ $task->task_list_id === $targetList->id ? 'text-blue-600 bg-blue-50 font-medium' : 'text-gray-700' }}" 
-                                                                    {{ $task->task_list_id === $targetList->id ? 'disabled' : '' }}
-                                                                    onclick="return confirm('Move this task to {{ $targetProject->name }} - {{ $targetList->name }}?')"
-                                                                >
-                                                                    <span class="inline-block w-3 h-3 rounded-full mr-2" style="background-color: {{ $targetList->color ?? '#6B7280' }};"></span>
-                                                                    {{ $targetList->name }}
-                                                                    @if($task->task_list_id === $targetList->id)
-                                                                        <span class="ml-2">✓</span>
-                                                                    @endif
-                                                                </button>
-                                                            </form>
-                                                        @endforeach
-                                                    @else
-                                                        <div class="px-6 py-2 text-xs text-gray-400 italic">No task lists</div>
-                                                    @endif
-                                                </div>
-                                            @endforeach
-                                            
+                                            <div class="move-to-content">
+                                                <div class="px-3 py-4 text-center text-sm text-gray-400">Loading...</div>
+                                            </div>
                                             <div class="border-t border-gray-100 mt-1"></div>
                                             <form action="{{ route('tasks.destroy', $task->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this task?');">
                                                 @csrf
@@ -1084,6 +1014,65 @@ function copyTaskUrl(url, event, element) {
     }
 }
 
+// ─── Dynamic "Move to" dropdown ────────────────────────────────────────────
+// Store all project/tasklist data once instead of rendering it for every task row.
+// This is critical for master admin who sees all projects.
+const currentProjectId = {{ $project->id }};
+@php
+    $allProjectsJson = json_encode($allProjects->map(function($p) {
+        return [
+            'id' => $p->id,
+            'name' => $p->name,
+            'taskLists' => $p->taskLists->map(function($l) {
+                return ['id' => $l->id, 'name' => $l->name, 'color' => $l->color ?? '#6B7280'];
+            })->values()->toArray()
+        ];
+    })->values()->toArray());
+@endphp
+const allProjectsData = {!! $allProjectsJson !!};
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(String(text)));
+    return div.innerHTML;
+}
+
+function buildMoveToDropdown(taskId, currentTaskListId) {
+    let html = '';
+    allProjectsData.forEach(proj => {
+        html += `<div class="border-b border-gray-100 last:border-0">`;
+        html += `<div class="px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-700 sticky top-8">${escapeHtml(proj.name)}`;
+        if (proj.id === currentProjectId) html += ` <span class="text-blue-600">(Current)</span>`;
+        html += `</div>`;
+        if (proj.taskLists && proj.taskLists.length > 0) {
+            proj.taskLists.forEach(list => {
+                const isCurrent = list.id === currentTaskListId;
+                const btnClass = isCurrent ? 'text-blue-600 bg-blue-50 font-medium' : 'text-gray-700';
+                html += `<button type="button" class="w-full px-6 py-2 text-left text-sm hover:bg-gray-50 ${btnClass}" ${isCurrent ? 'disabled' : ''} onclick="moveTask(${taskId}, ${list.id}, ${proj.id}, ${JSON.stringify(proj.name)}, ${JSON.stringify(list.name)})">`;
+                html += `<span class="inline-block w-3 h-3 rounded-full mr-2" style="background-color: ${escapeHtml(list.color || '#6B7280')}"></span>`;
+                html += escapeHtml(list.name);
+                if (isCurrent) html += ` <span class="ml-2">✓</span>`;
+                html += `</button>`;
+            });
+        } else {
+            html += `<div class="px-6 py-2 text-xs text-gray-400 italic">No task lists</div>`;
+        }
+        html += `</div>`;
+    });
+    return html;
+}
+
+function moveTask(taskId, taskListId, projectId, projectName, listName) {
+    if (!confirm(`Move this task to ${projectName} - ${listName}?`)) return;
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ url('/tasks') }}/' + taskId;
+    form.innerHTML = `<input type="hidden" name="_token" value="${document.querySelector('meta[name="csrf-token"]').content}"><input type="hidden" name="_method" value="PUT"><input type="hidden" name="task_list_id" value="${taskListId}"><input type="hidden" name="project_id" value="${projectId}">`;
+    document.body.appendChild(form);
+    form.submit();
+}
+// ───────────────────────────────────────────────────────────────────────────
+
 function parseISODate(value) {
     if (!value) return null;
     const d = new Date(value + 'T00:00:00');
@@ -1134,7 +1123,7 @@ function updateTaskListCounts() {
         if (els.length === 0) return;
         const visible = countsByList[listId];
         els.forEach(el => {
-            el.textContent = `${visible} ${visible === 1 ? 'task' : 'tasks'}`;
+        el.textContent = `${visible} ${visible === 1 ? 'task' : 'tasks'}`;
         });
     });
 }
@@ -1208,11 +1197,11 @@ function filterProjectTasks() {
             `show_approved_tasks_grid_${taskListId}`
         ];
         
+        // Find first checkbox that exists – all are kept in sync by syncApprovedCheckboxes()
         let showApprovedCheckbox = null;
         for (const id of checkboxIds) {
             const checkbox = document.getElementById(id);
-            // Check if checkbox exists and is visible (offsetParent !== null means it's visible)
-            if (checkbox && checkbox.offsetParent !== null) {
+            if (checkbox) {
                 showApprovedCheckbox = checkbox;
                 break;
             }
@@ -1299,14 +1288,14 @@ function hideEmptyTaskLists() {
         document.getElementById('task_type_filter')?.value ||
         document.getElementById('task_status_filter')?.value;
     
-    // If no filters are active, show all task lists (let Alpine.js x-show handle visibility)
+    // If no filters are active, only clear display on containers hidden by the JS filter
+    // (those with data-filtered-out). Do NOT touch others — Alpine.js x-show controls them.
     if (!hasActiveFilters) {
-        const allTaskListContainers = document.querySelectorAll('[data-task-list-id]');
-        allTaskListContainers.forEach(container => {
+        const filteredOutContainers = document.querySelectorAll('[data-task-list-id][data-filtered-out]');
+        filteredOutContainers.forEach(container => {
             container.removeAttribute('data-filtered-out');
             container.style.removeProperty('display');
         });
-        // Note: We don't touch .task-list-expanded - Alpine.js x-show handles them
         return;
     }
     

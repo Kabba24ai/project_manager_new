@@ -21,21 +21,16 @@ class ProjectController extends Controller
 
         $query = Project::with(['createdBy.roles', 'projectManager.roles', 'taskLists.tasks.assignedUser.roles', 'taskLists.tasks.creator.roles', 'taskLists.tasks.comments.user']);
 
-        // Master admin can see all projects
+        // Master admin can see all projects.
+        // Other users only see projects they are a member of
+        // (creator, project manager, or team member).
         if (!$isMasterAdmin) {
             $query->where(function ($q) {
-                $q->where(function ($subQ) {
-                    // User is part of the project
-                    $subQ->where('created_by', Auth::id())
-                        ->orWhere('project_manager_id', Auth::id())
-                        ->orWhereHas('teamMembers', function ($teamQ) {
-                            $teamQ->where('user_id', Auth::id());
-                        });
-                })
-                ->orWhere(function ($subQ) {
-                    // Or project is public
-                    $subQ->whereRaw("JSON_EXTRACT(settings, '$.publicProject') = true");
-                });
+                $q->where('created_by', Auth::id())
+                    ->orWhere('project_manager_id', Auth::id())
+                    ->orWhereHas('teamMembers', function ($teamQ) {
+                        $teamQ->where('user_id', Auth::id());
+                    });
             });
         }
 
@@ -102,11 +97,8 @@ class ProjectController extends Controller
             || $project->project_manager_id === Auth::id()
             || $project->teamMembers->contains('id', Auth::id());
 
-        $hasAccess = $isMasterAdmin || $isPublicProject || $isTeamMember;
-
-        if (!$hasAccess) {
-            abort(403, 'You do not have permission to view this project.');
-        }
+        // Any authenticated user can view a project.
+        // Edit/delete/task-add actions are gated in the view based on role & membership.
 
         if (request()->expectsJson()) {
             return response()->json(['data' => ['project' => $project]]);

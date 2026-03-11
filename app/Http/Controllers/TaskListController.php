@@ -106,7 +106,7 @@ class TaskListController extends Controller
             return response()->json(['data' => ['task_list' => $taskList]], 201);
         }
 
-        return redirect()->route('projects.show', $projectId)
+        return redirect()->route('task-lists.show', [$projectId, $taskList->id])
             ->with('success', 'Task list created successfully.');
     }
 

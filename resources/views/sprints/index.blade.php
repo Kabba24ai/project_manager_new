@@ -104,17 +104,29 @@
 
                 <!-- Grid view -->
                 <button @click="setView('grid')"
-                        :class="viewMode === 'grid' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'"
-                        class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">
-                    <i class="fas fa-th-large text-xs"></i>
+                        :class="viewMode === 'grid' ? 'bg-slate-700 text-white hover:bg-slate-800' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'"
+                        class="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-grid w-5 h-5">
+                        <rect width="7" height="7" x="3" y="3" rx="1"></rect>
+                        <rect width="7" height="7" x="14" y="3" rx="1"></rect>
+                        <rect width="7" height="7" x="14" y="14" rx="1"></rect>
+                        <rect width="7" height="7" x="3" y="14" rx="1"></rect>
+                    </svg>
                     <span>Grid View</span>
                 </button>
 
                 <!-- List view -->
                 <button @click="setView('list')"
-                        :class="viewMode === 'list' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'"
-                        class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">
-                    <i class="fas fa-list text-xs"></i>
+                        :class="viewMode === 'list' ? 'bg-slate-700 text-white hover:bg-slate-800' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'"
+                        class="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list w-5 h-5">
+                        <line x1="8" x2="21" y1="6" y2="6"></line>
+                        <line x1="8" x2="21" y1="12" y2="12"></line>
+                        <line x1="8" x2="21" y1="18" y2="18"></line>
+                        <line x1="3" x2="3.01" y1="6" y2="6"></line>
+                        <line x1="3" x2="3.01" y1="12" y2="12"></line>
+                        <line x1="3" x2="3.01" y1="18" y2="18"></line>
+                    </svg>
                     <span>List View</span>
                 </button>
             </div>

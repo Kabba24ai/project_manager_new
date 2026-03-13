@@ -511,7 +511,7 @@ function sprintBoard() {
         viewMode: 'grid',
         init() {
             const saved = localStorage.getItem('sprintShowViewMode');
-            if (saved === 'grid' || saved === 'list') this.viewMode = saved;
+            if (saved === 'list') this.viewMode = 'list';
             this.$watch('viewMode', v => localStorage.setItem('sprintShowViewMode', v));
             this.$watch('treeSearch', v => filterTreeTasks(v));
             this.$nextTick(() => filterSprintTasks());

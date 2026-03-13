@@ -1,4 +1,4 @@
-<div x-data="teamMembersBar()" x-init="loadTeamMembers()" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+<div x-data="teamMembersBar()" x-init="loadTeamMembers()" class="bg-white p-4 mb-4">
     <!-- Loading State -->
     <div x-show="loading" class="flex items-center justify-center">
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>

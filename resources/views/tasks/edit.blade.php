@@ -561,8 +561,8 @@
                             <p x-show="descriptionError" class="mt-2 text-sm text-red-600" x-text="descriptionError"></p>
                         </div>
 
-                        <!-- Priority, Status, Assigned To -->
-                        <div class="grid grid-cols-3 gap-4">
+                        <!-- Priority, Status, Assigned To, Sprint -->
+                        <div class="grid grid-cols-4 gap-4">
                             <div>
                                 <label for="priority" class="block text-sm font-medium text-gray-700 mb-2">Priority</label>
                                 <select 
@@ -618,6 +618,26 @@
                                     @endforeach
                                 </select>
                                 <p class="mt-1 text-xs text-gray-500">Tasks can be assigned later if needed</p>
+                            </div>
+
+                            <div>
+                                <label for="sprint_id" class="block text-sm font-medium text-gray-700 mb-2">Sprint</label>
+                                <select
+                                    id="sprint_id"
+                                    name="sprint_id"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+                                >
+                                    <option value="">No Sprint</option>
+                                    @foreach($sprints as $sprint)
+                                    <option value="{{ $sprint->id }}" {{ old('sprint_id', $task->sprint_id) == $sprint->id ? 'selected' : '' }}>
+                                        {{ $sprint->name }}
+                                        @if($sprint->status === 'active') (Active)@endif
+                                    </option>
+                                    @endforeach
+                                </select>
+                                @if($sprints->isEmpty())
+                                <p class="mt-1 text-xs text-gray-400">No active sprints for this project</p>
+                                @endif
                             </div>
                         </div>
 

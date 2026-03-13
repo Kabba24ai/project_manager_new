@@ -37,15 +37,101 @@
                         <i class="fas fa-cog"></i>
                         <span>Manage Templates</span>
                     </a>
+                    <!-- Users dropdown -->
+                    <div x-data="{ open: false }" class="relative">
+                        <button @click="open = !open" class="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-blue-600 border border-gray-300 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors">
+                            <i class="fas fa-users"></i>
+                            <span>Users</span>
+                            <i class="fas fa-chevron-down text-xs ml-1" :class="open ? 'rotate-180' : ''" style="transition: transform 0.2s"></i>
+                        </button>
+                        <!-- Dropdown panel -->
+                        <div x-show="open" x-cloak @click.outside="open = false"
+                             x-transition:enter="transition ease-out duration-150"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-100"
+                             x-transition:leave-start="opacity-100 scale-100"
+                             x-transition:leave-end="opacity-0 scale-95"
+                             class="absolute right-0 mt-2 w-[700px] max-w-[90vw] bg-white rounded-xl border border-gray-200 shadow-xl z-50 p-4">
+                            @include('projects.team-members-bar')
+                        </div>
+                    </div>
                     <a href="{{ route('projects.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 transition-colors">
                         <i class="fas fa-plus"></i>
                         <span>Add Project</span>
                     </a>
                 </div>
             </div>
-            <div class="team-mebers-bar">
-                @include('projects.team-members-bar')
+
+            <!-- Sprint Tasks Section -->
+            @if($dashboardSprints->isNotEmpty())
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center space-x-3 mb-5">
+                    <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-running text-purple-600 text-sm"></i>
+                    </div>
+                    <h2 class="text-base font-semibold text-gray-900">Sprint Overview</h2>
+                </div>
+
+                <div class="grid grid-cols-1 {{ $dashboardSprints->count() > 1 ? 'md:grid-cols-2' : '' }} gap-5">
+                    @foreach($dashboardSprints as $dSprint)
+                    @php
+                        $dsTaskCount = $dSprint->tasks_count;
+                        $dsDoneCount = $dSprint->tasks->where('task_status', 'approved')->count();
+                        $dsProgress  = $dsTaskCount > 0 ? round(($dsDoneCount / $dsTaskCount) * 100) : 0;
+                        $dsStatusColor = match($dSprint->status) {
+                            'active'    => 'bg-green-100 text-green-800 border-green-200',
+                            'completed' => 'bg-blue-100 text-blue-800 border-blue-200',
+                            default     => 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                        };
+                    @endphp
+                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+                        <!-- Sprint header -->
+                        <div class="flex items-start justify-between mb-3">
+                            <div>
+                                <div class="flex items-center space-x-2 mb-0.5">
+                                    <a href="{{ route('sprints.show', $dSprint->id) }}" class="text-sm font-semibold text-gray-900 hover:text-blue-600 transition-colors">
+                                        {{ $dSprint->name }}
+                                    </a>
+                                    <span class="text-xs px-1.5 py-0.5 rounded-full border font-medium {{ $dsStatusColor }}">{{ ucfirst($dSprint->status) }}</span>
+                                </div>
+                                <span class="text-xs text-gray-400">
+                                    <i class="fas fa-calendar-alt mr-1"></i>{{ $dSprint->start_date->format('M d') }} – {{ $dSprint->end_date->format('M d, Y') }}
+                                </span>
+                            </div>
+                            <span class="text-xs text-gray-500 flex-shrink-0">{{ $dsTaskCount }} {{ Str::plural('task', $dsTaskCount) }}</span>
+                        </div>
+
+                        <!-- Progress bar -->
+                        <div class="mb-3">
+                            <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
+                                <span>{{ $dsDoneCount }} / {{ $dsTaskCount }} done</span>
+                                <span>{{ $dsProgress }}%</span>
+                            </div>
+                            <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div class="h-1.5 rounded-full {{ $dSprint->status === 'completed' ? 'bg-blue-500' : 'bg-green-500' }}"
+                                     style="width: {{ $dsProgress }}%"></div>
+                            </div>
+                        </div>
+
+                        <a href="{{ route('sprints.show', $dSprint->id) }}" class="mt-3 inline-flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+                            <span>View sprint</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                    @endforeach
+                </div>
+
+                <!-- View more button -->
+                <div class="mt-5 pt-4 border-t border-gray-100 flex justify-center">
+                    <a href="{{ route('sprints.index') }}"
+                       class="flex items-center space-x-2 px-5 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 border border-gray-300 hover:border-blue-300 rounded-lg hover:bg-blue-50 transition-colors">
+                        <span>View All</span>
+                        <i class="fas fa-arrow-right text-xs"></i>
+                    </a>
+                </div>
             </div>
+            @endif
             <!-- Projects Section -->
             <div class="space-y-4">
                 <div class="flex items-center justify-between">

@@ -564,15 +564,25 @@
                             </div>
 
                             <div>
-                                <label for="sprint" class="block text-sm font-medium text-gray-700 mb-2">Sprint (Coming Soon)</label>
+                                <label for="sprint_id" class="block text-sm font-medium text-gray-700 mb-2">Sprint</label>
                                 <select 
-                                    id="sprint" 
-                                    name="sprint"
-                                    disabled
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm opacity-50"
+                                    id="sprint_id"
+                                    name="sprint_id"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
                                 >
-                                    <option value="">Sprint feature coming soon</option>
+                                    <option value="">No Sprint</option>
+                                    @foreach($sprints as $sprint)
+                                    <option value="{{ $sprint->id }}" {{ old('sprint_id', $defaultSprintId ?? '') == $sprint->id ? 'selected' : '' }}>
+                                        {{ $sprint->name }}
+                                        @if($sprint->status === 'active')
+                                            <span> (Active)</span>
+                                        @endif
+                                    </option>
+                                    @endforeach
                                 </select>
+                                @if($sprints->isEmpty())
+                                <p class="mt-1 text-xs text-gray-400">No active sprints for this project</p>
+                                @endif
                             </div>
                         </div>
 
@@ -1645,7 +1655,7 @@ function taskForm() {
                             this.attachments[idx].uploading = false;
                             this.attachments[idx].error = true;
                         }
-                    } else {
+                } else {
                         console.error('Upload failed:', xhr.status, xhr.responseText);
                         this.attachments[idx].uploading = false;
                         this.attachments[idx].error = true;

@@ -67,6 +67,11 @@ class Project extends Model
         return $this->hasMany(Task::class);
     }
 
+    public function sprints(): HasMany
+    {
+        return $this->hasMany(Sprint::class);
+    }
+
     public function attachments(): MorphMany
     {
         return $this->morphMany(Attachment::class, 'attachable');

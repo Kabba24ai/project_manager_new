@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Task extends Model
 {
@@ -33,6 +34,7 @@ class Task extends Model
         'customer_id',
         'order_id',
         'customer_type',
+        'sprint_id',
     ];
 
     protected $casts = [
@@ -53,6 +55,11 @@ class Task extends Model
     public function taskList(): BelongsTo
     {
         return $this->belongsTo(TaskList::class);
+    }
+
+    public function sprint(): BelongsTo
+    {
+        return $this->belongsTo(Sprint::class);
     }
 
     public function assignedUser(): BelongsTo

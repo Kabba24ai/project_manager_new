@@ -47,6 +47,7 @@ class TaskController extends Controller
             ->orderBy('first_name')
             ->get();
         $taskListId = request('task_list_id');
+        $defaultSprintId = request('sprint_id');
         
         // Load equipment categories with their equipment
         $equipmentCategories = \App\Models\ProductCategory::with(['equipment' => function ($query) {
@@ -88,7 +89,12 @@ class TaskController extends Controller
                 ];
             });
 
-        return view('tasks.create', compact('project', 'users', 'taskListId', 'equipmentCategories', 'customers'));
+        // Load all global sprints (active and planning only)
+        $sprints = \App\Models\Sprint::whereIn('status', ['planning', 'active'])
+            ->orderBy('start_date')
+            ->get();
+
+        return view('tasks.create', compact('project', 'users', 'taskListId', 'equipmentCategories', 'customers', 'sprints', 'defaultSprintId'));
     }
 
     public function store(Request $request, $taskListId)
@@ -113,6 +119,7 @@ class TaskController extends Controller
             'customer_id' => 'nullable|integer',
             'order_id' => 'nullable|string',
             'customer_type' => 'nullable|in:general,charge,refund',
+            'sprint_id' => 'nullable|exists:sprints,id',
         ];
         
         // Require customer_id and customer_type when task_type is customerName (order_id is optional)
@@ -144,6 +151,7 @@ class TaskController extends Controller
             'customer_id' => $request->customer_id,
             'order_id' => $request->order_id,
             'customer_type' => $request->customer_type ?? 'general',
+            'sprint_id' => $request->sprint_id ?: null,
         ]);
 
         // Save attachments (optional)
@@ -372,7 +380,12 @@ class TaskController extends Controller
                 ];
             });
 
-        return view('tasks.edit', compact('task', 'users', 'project', 'equipmentCategories', 'customers'));
+        // Load all global sprints (active and planning only)
+        $sprints = \App\Models\Sprint::whereIn('status', ['planning', 'active'])
+            ->orderBy('start_date')
+            ->get();
+
+        return view('tasks.edit', compact('task', 'users', 'project', 'equipmentCategories', 'customers', 'sprints'));
     }
 
     public function update(Request $request, $id)
@@ -417,6 +430,7 @@ class TaskController extends Controller
             'customer_id' => 'nullable|integer',
             'order_id' => 'nullable|string',
             'customer_type' => 'nullable|in:general,charge,refund',
+            'sprint_id' => 'nullable|exists:sprints,id',
         ];
         
         // Require customer_id and customer_type when task_type is customerName (order_id is optional)
@@ -457,7 +471,7 @@ class TaskController extends Controller
             }
         }
 
-        $task->update($request->only([
+        $updateData = $request->only([
             'title',
             'description',
             'priority',
@@ -475,7 +489,12 @@ class TaskController extends Controller
             'customer_id',
             'order_id',
             'customer_type',
-        ]));
+        ]);
+        // Handle sprint_id explicitly so an empty string clears the sprint
+        if ($request->has('sprint_id')) {
+            $updateData['sprint_id'] = $request->sprint_id ?: null;
+        }
+        $task->update($updateData);
 
         // Save new attachments (optional)
         $files = $request->file('attachments', []);
@@ -574,19 +593,61 @@ class TaskController extends Controller
 
     public function move(Request $request, $id)
     {
-        $task = Task::findOrFail($id);
+        $task = Task::with('project.teamMembers')->findOrFail($id);
+
+        // Check permission
+        $user = Auth::user();
+        $userRoles = $user->getRoleNames();
+        $isMasterAdmin = $userRoles->contains(function ($role) {
+            return strtolower($role) === 'master admin' || strtolower($role) === 'master_admin';
+        });
+
+        $project = $task->project;
+        $isTeamMember = $project->created_by === Auth::id()
+            || $project->project_manager_id === Auth::id()
+            || $project->teamMembers->contains('id', Auth::id());
+
+        if (!$isMasterAdmin && !$isTeamMember) {
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'Permission denied.'], 403);
+            }
+            return redirect()->back()->with('error', 'You do not have permission to move this task.');
+        }
 
         $request->validate([
             'task_list_id' => 'required|exists:task_lists,id',
+            'project_id'   => 'nullable|exists:projects,id',
         ]);
 
-        $task->update(['task_list_id' => $request->task_list_id]);
+        $updates = ['task_list_id' => $request->task_list_id];
+
+        // Handle cross-project move
+        if ($request->filled('project_id') && (int) $request->project_id !== $task->project_id) {
+            $targetProject = Project::with('teamMembers')->findOrFail($request->project_id);
+
+            $isTargetTeamMember = $targetProject->created_by === Auth::id()
+                || $targetProject->project_manager_id === Auth::id()
+                || $targetProject->teamMembers->contains('id', Auth::id());
+
+            if (!$isMasterAdmin && !$isTargetTeamMember) {
+                if ($request->expectsJson()) {
+                    return response()->json(['error' => 'Permission denied for target project.'], 403);
+                }
+                return redirect()->back()->with('error', 'You do not have permission to move tasks to that project.');
+            }
+
+            $updates['project_id'] = $request->project_id;
+        }
+
+        $task->update($updates);
 
         if ($request->expectsJson()) {
             return response()->json(['data' => ['task' => $task]]);
         }
 
-        return redirect()->back()->with('success', 'Task moved successfully.');
+        $redirectProjectId = $updates['project_id'] ?? $task->project_id;
+        return redirect()->route('projects.show', $redirectProjectId)
+            ->with('success', 'Task moved successfully.');
     }
 
     public function destroy($id)

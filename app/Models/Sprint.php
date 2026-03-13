@@ -1,0 +1,55 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Sprint extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'project_id',
+        'created_by',
+        'name',
+        'goal',
+        'start_date',
+        'end_date',
+        'status',
+    ];
+
+    protected $casts = [
+        'start_date' => 'date',
+        'end_date'   => 'date',
+    ];
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
+
+    public function getCompletedTasksCountAttribute(): int
+    {
+        return $this->tasks->where('task_status', 'approved')->count();
+    }
+
+    public function getProgressAttribute(): int
+    {
+        $total = $this->tasks->count();
+        if ($total === 0) return 0;
+        return (int) round(($this->completed_tasks_count / $total) * 100);
+    }
+}

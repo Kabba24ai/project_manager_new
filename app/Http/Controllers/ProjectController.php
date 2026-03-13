@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\Sprint;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -66,9 +67,23 @@ class ProjectController extends Controller
             ]);
         }
 
+        // Load 2 sprints for the dashboard: oldest and newest by start_date
+        $allSprints = Sprint::withCount('tasks')
+            ->with(['tasks.assignedUser', 'tasks.taskList', 'tasks.project'])
+            ->orderBy('start_date')
+            ->get();
+
+        $dashboardSprints = collect();
+        if ($allSprints->isNotEmpty()) {
+            $dashboardSprints->push($allSprints->first());
+            if ($allSprints->count() > 1) {
+                $dashboardSprints->push($allSprints->last());
+            }
+        }
+
         // Read the role via Spatie (uses roles + model_has_roles tables internally)
         $authRoleName = Auth::user()?->getRoleNames()?->first() ?? '';
-        return view('projects.index', compact('projects', 'authRoleName'));
+        return view('projects.index', compact('projects', 'authRoleName', 'dashboardSprints'));
     }
 
     public function show($id)

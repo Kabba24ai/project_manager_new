@@ -44,6 +44,10 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-3">
+                    <a href="{{ route('sprints.index') }}" class="text-gray-600 hover:text-gray-900 text-sm font-medium transition-colors flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100">
+                        <i class="fas fa-running"></i>
+                        <span>Sprints</span>
+                    </a>
                     <a href="{{ route('task-templates.index') }}" class="text-gray-600 hover:text-gray-900 text-sm font-medium transition-colors flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100">
                         <i class="fas fa-copy"></i>
                         <span>Templates</span>
@@ -1037,6 +1041,15 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Build a flat lookup: listId -> { projectId, projectName, listName }
+// Done once so click handlers never need to search strings inside HTML attributes.
+const _moveToIndex = {};
+allProjectsData.forEach(proj => {
+    (proj.taskLists || []).forEach(list => {
+        _moveToIndex[list.id] = { projectId: proj.id, projectName: proj.name, listName: list.name };
+    });
+});
+
 function buildMoveToDropdown(taskId, currentTaskListId) {
     let html = '';
     allProjectsData.forEach(proj => {
@@ -1048,7 +1061,12 @@ function buildMoveToDropdown(taskId, currentTaskListId) {
             proj.taskLists.forEach(list => {
                 const isCurrent = list.id === currentTaskListId;
                 const btnClass = isCurrent ? 'text-blue-600 bg-blue-50 font-medium' : 'text-gray-700';
-                html += `<button type="button" class="w-full px-6 py-2 text-left text-sm hover:bg-gray-50 ${btnClass}" ${isCurrent ? 'disabled' : ''} onclick="moveTask(${taskId}, ${list.id}, ${proj.id}, ${JSON.stringify(proj.name)}, ${JSON.stringify(list.name)})">`;
+                // Only numeric IDs go into data-* — names are looked up from _moveToIndex
+                html += `<button type="button"
+                    class="w-full px-6 py-2 text-left text-sm hover:bg-gray-50 ${btnClass} move-to-btn"
+                    ${isCurrent ? 'disabled' : ''}
+                    data-task-id="${taskId}"
+                    data-list-id="${list.id}">`;
                 html += `<span class="inline-block w-3 h-3 rounded-full mr-2" style="background-color: ${escapeHtml(list.color || '#6B7280')}"></span>`;
                 html += escapeHtml(list.name);
                 if (isCurrent) html += ` <span class="ml-2">✓</span>`;
@@ -1062,12 +1080,35 @@ function buildMoveToDropdown(taskId, currentTaskListId) {
     return html;
 }
 
+// Single delegated listener — handles all dynamically built move-to buttons
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.move-to-btn');
+    if (!btn) return;
+    e.stopPropagation();
+    const taskId = btn.dataset.taskId;
+    const listId = parseInt(btn.dataset.listId, 10);
+    const info   = _moveToIndex[listId];
+    if (!info) return;
+    moveTask(taskId, listId, info.projectId, info.projectName, info.listName);
+});
+
 function moveTask(taskId, taskListId, projectId, projectName, listName) {
-    if (!confirm(`Move this task to ${projectName} - ${listName}?`)) return;
+    if (!confirm('Move this task to ' + projectName + ' - ' + listName + '?')) return;
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = '{{ url('/tasks') }}/' + taskId;
-    form.innerHTML = `<input type="hidden" name="_token" value="${document.querySelector('meta[name="csrf-token"]').content}"><input type="hidden" name="_method" value="PUT"><input type="hidden" name="task_list_id" value="${taskListId}"><input type="hidden" name="project_id" value="${projectId}">`;
+    form.action = '{{ url('/tasks') }}/' + taskId + '/move';
+    const csrf = document.querySelector('meta[name="csrf-token"]').content;
+    const input = function(name, value) {
+        const el = document.createElement('input');
+        el.type = 'hidden';
+        el.name = name;
+        el.value = value;
+        return el;
+    };
+    form.appendChild(input('_token', csrf));
+    form.appendChild(input('_method', 'PATCH'));
+    form.appendChild(input('task_list_id', taskListId));
+    form.appendChild(input('project_id', projectId));
     document.body.appendChild(form);
     form.submit();
 }

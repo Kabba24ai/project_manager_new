@@ -6,6 +6,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\SprintController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskListController;
 use App\Http\Controllers\TaskTemplateController;
@@ -36,6 +37,17 @@ Route::middleware('auth')->group(function () {
     Route::resource('projects', ProjectController::class);
     Route::get('/projects/{project}/manage-lists', [ProjectController::class, 'manageLists'])->name('projects.manage-lists');
     Route::post('/projects/{project}/update-lists-order', [ProjectController::class, 'updateListsOrder'])->name('projects.update-lists-order');
+
+    // Sprints (global — not tied to a project)
+    Route::get('/sprints', [SprintController::class, 'index'])->name('sprints.index');
+    Route::get('/sprints/create', [SprintController::class, 'create'])->name('sprints.create');
+    Route::post('/sprints', [SprintController::class, 'store'])->name('sprints.store');
+    Route::get('/sprints/{sprint}', [SprintController::class, 'show'])->name('sprints.show');
+    Route::get('/sprints/{sprint}/edit', [SprintController::class, 'edit'])->name('sprints.edit');
+    Route::put('/sprints/{sprint}', [SprintController::class, 'update'])->name('sprints.update');
+    Route::delete('/sprints/{sprint}', [SprintController::class, 'destroy'])->name('sprints.destroy');
+    Route::post('/sprints/{sprint}/tasks', [SprintController::class, 'addTask'])->name('sprints.tasks.add');
+    Route::delete('/sprints/{sprint}/tasks/{task}', [SprintController::class, 'removeTask'])->name('sprints.tasks.remove');
 
     // Task Lists
     Route::get('/projects/{project}/task-lists', [TaskListController::class, 'index'])->name('task-lists.index');

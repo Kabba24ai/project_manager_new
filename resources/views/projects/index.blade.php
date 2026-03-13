@@ -64,16 +64,23 @@
             </div>
 
             <!-- Sprint Tasks Section -->
-            @if($dashboardSprints->isNotEmpty())
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div class="flex items-center space-x-3 mb-5">
-                    <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-running text-purple-600 text-sm"></i>
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-3">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-6 h-6 bg-purple-100 rounded-md flex items-center justify-center">
+                            <i class="fas fa-running text-purple-600 text-xs"></i>
+                        </div>
+                        <h2 class="text-sm font-semibold text-gray-900">Sprint Overview</h2>
                     </div>
-                    <h2 class="text-base font-semibold text-gray-900">Sprint Overview</h2>
+                    <a href="{{ route('sprints.create') }}"
+                       class="flex items-center space-x-1 px-2.5 py-1 text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
+                        <i class="fas fa-plus text-xs"></i>
+                        <span>New Sprint</span>
+                    </a>
                 </div>
 
-                <div class="grid grid-cols-1 {{ $dashboardSprints->count() > 1 ? 'md:grid-cols-2' : '' }} gap-5">
+                @if($dashboardSprints->isNotEmpty())
+                <div class="grid grid-cols-1 {{ $dashboardSprints->count() > 1 ? 'md:grid-cols-2' : '' }} gap-3">
                     @foreach($dashboardSprints as $dSprint)
                     @php
                         $dsTaskCount = $dSprint->tasks_count;
@@ -85,36 +92,34 @@
                             default     => 'bg-yellow-100 text-yellow-800 border-yellow-200',
                         };
                     @endphp
-                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+                    <div class="border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow">
                         <!-- Sprint header -->
-                        <div class="flex items-start justify-between mb-3">
-                            <div>
-                                <div class="flex items-center space-x-2 mb-0.5">
-                                    <a href="{{ route('sprints.show', $dSprint->id) }}" class="text-sm font-semibold text-gray-900 hover:text-blue-600 transition-colors">
-                                        {{ $dSprint->name }}
-                                    </a>
-                                    <span class="text-xs px-1.5 py-0.5 rounded-full border font-medium {{ $dsStatusColor }}">{{ ucfirst($dSprint->status) }}</span>
-                                </div>
-                                <span class="text-xs text-gray-400">
-                                    <i class="fas fa-calendar-alt mr-1"></i>{{ $dSprint->start_date->format('M d') }} – {{ $dSprint->end_date->format('M d, Y') }}
-                                </span>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <div class="flex items-center space-x-2 min-w-0">
+                                <a href="{{ route('sprints.show', $dSprint->id) }}" class="text-sm font-semibold text-gray-900 hover:text-blue-600 transition-colors truncate">
+                                    {{ $dSprint->name }}
+                                </a>
+                                <span class="text-xs px-1.5 py-0.5 rounded-full border font-medium flex-shrink-0 {{ $dsStatusColor }}">{{ ucfirst($dSprint->status) }}</span>
                             </div>
-                            <span class="text-xs text-gray-500 flex-shrink-0">{{ $dsTaskCount }} {{ Str::plural('task', $dsTaskCount) }}</span>
+                            <span class="text-xs text-gray-500 flex-shrink-0 ml-2">{{ $dsTaskCount }} {{ Str::plural('task', $dsTaskCount) }}</span>
+                        </div>
+                        <div class="text-xs text-gray-400 mb-2">
+                            <i class="fas fa-calendar-alt mr-1"></i>{{ $dSprint->start_date->format('M d') }} – {{ $dSprint->end_date->format('M d, Y') }}
                         </div>
 
                         <!-- Progress bar -->
-                        <div class="mb-3">
+                        <div class="mb-2">
                             <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
                                 <span>{{ $dsDoneCount }} / {{ $dsTaskCount }} done</span>
                                 <span>{{ $dsProgress }}%</span>
                             </div>
-                            <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                <div class="h-1.5 rounded-full {{ $dSprint->status === 'completed' ? 'bg-blue-500' : 'bg-green-500' }}"
+                            <div class="h-1 bg-gray-100 rounded-full overflow-hidden">
+                                <div class="h-1 rounded-full {{ $dSprint->status === 'completed' ? 'bg-blue-500' : 'bg-green-500' }}"
                                      style="width: {{ $dsProgress }}%"></div>
                             </div>
                         </div>
 
-                        <a href="{{ route('sprints.show', $dSprint->id) }}" class="mt-3 inline-flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+                        <a href="{{ route('sprints.show', $dSprint->id) }}" class="inline-flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
                             <span>View sprint</span>
                             <i class="fas fa-arrow-right"></i>
                         </a>
@@ -123,15 +128,31 @@
                 </div>
 
                 <!-- View more button -->
-                <div class="mt-5 pt-4 border-t border-gray-100 flex justify-center">
+                <div class="mt-3 pt-2 border-t border-gray-100 flex justify-center">
                     <a href="{{ route('sprints.index') }}"
-                       class="flex items-center space-x-2 px-5 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 border border-gray-300 hover:border-blue-300 rounded-lg hover:bg-blue-50 transition-colors">
+                       class="flex items-center space-x-1.5 px-4 py-1.5 text-xs font-medium text-gray-600 hover:text-blue-600 border border-gray-300 hover:border-blue-300 rounded-lg hover:bg-blue-50 transition-colors">
                         <span>View All</span>
                         <i class="fas fa-arrow-right text-xs"></i>
                     </a>
                 </div>
+                @else
+                <!-- Empty state -->
+                <div class="flex items-center justify-between py-3 px-3 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-running text-purple-200 text-2xl"></i>
+                        <div>
+                            <p class="text-xs font-medium text-gray-600">No sprints yet</p>
+                            <p class="text-xs text-gray-400">Create a sprint to track work in time-boxed iterations.</p>
+                        </div>
+                    </div>
+                    <a href="{{ route('sprints.create') }}"
+                       class="flex-shrink-0 flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors ml-4">
+                        <i class="fas fa-plus text-xs"></i>
+                        <span>Create Sprint</span>
+                    </a>
+                </div>
+                @endif
             </div>
-            @endif
             <!-- Projects Section -->
             <div class="space-y-4">
                 <div class="flex items-center justify-between">

@@ -47,6 +47,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/sprints/{sprint}', [SprintController::class, 'update'])->name('sprints.update');
     Route::delete('/sprints/{sprint}', [SprintController::class, 'destroy'])->name('sprints.destroy');
     Route::post('/sprints/{sprint}/tasks', [SprintController::class, 'addTask'])->name('sprints.tasks.add');
+    Route::post('/sprints/{sprint}/tasks/bulk', [SprintController::class, 'bulkAddTasks'])->name('sprints.tasks.bulkAdd');
     Route::delete('/sprints/{sprint}/tasks/{task}', [SprintController::class, 'removeTask'])->name('sprints.tasks.remove');
 
     // Task Lists

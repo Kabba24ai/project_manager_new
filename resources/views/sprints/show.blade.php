@@ -4,9 +4,10 @@
 
 @section('content')
 @php
-    $taskCount = $sprint->tasks->count();
-    $doneCount = $sprint->tasks->where('task_status', 'approved')->count();
-    $progress  = $taskCount > 0 ? round(($doneCount / $taskCount) * 100) : 0;
+    $taskCount        = $sprint->tasks->count();
+    $doneCount        = $sprint->tasks->where('task_status', 'approved')->count();
+    $visibleTaskCount = $taskCount - $doneCount; // default: hide completed is checked
+    $progress         = $taskCount > 0 ? round(($doneCount / $taskCount) * 100) : 0;
     $statusColor = match($sprint->status) {
         'active'    => 'bg-green-100 text-green-800 border-green-200',
         'completed' => 'bg-blue-100 text-blue-800 border-blue-200',
@@ -16,7 +17,60 @@
         ? auth()->user()->roles->pluck('name')->map(fn($r) => strtolower($r))->all()
         : [];
     $isMasterAdmin = in_array('master admin', $userRoleNames) || in_array('master_admin', $userRoleNames);
-    $treeTaskTotal = $projects->sum(fn($p) => $p->taskLists->sum(fn($l) => $l->tasks->count()));
+    $priorityOrder = ['urgent' => 0, 'high' => 1, 'medium' => 2, 'low' => 3];
+
+    $treeData = [];
+    foreach ($projects as $proj) {
+        $projNode = ['id' => $proj->id, 'name' => $proj->name, 'lists' => []];
+
+        // Sort task lists alphabetically
+        $sortedLists = $proj->taskLists->sortBy('name');
+
+        foreach ($sortedLists as $list) {
+            $listNode = ['id' => $list->id, 'name' => $list->name, 'tasks' => []];
+
+            // Sort tasks: priority first, then alphabetically by title
+            $sortedTasks = $list->tasks->sortBy([
+                fn($a, $b) => ($priorityOrder[$a->priority ?? 'medium'] ?? 2)
+                           <=> ($priorityOrder[$b->priority ?? 'medium'] ?? 2),
+                fn($a, $b) => strcasecmp($a->title, $b->title),
+            ]);
+
+            foreach ($sortedTasks as $task) {
+                $listNode['tasks'][] = [
+                    'id'          => $task->id,
+                    'title'       => $task->title,
+                    'priority'    => $task->priority ?? 'medium',
+                    'status'      => $task->task_status ?? 'pending',
+                    'projectName' => $proj->name,
+                    'listName'    => $list->name,
+                ];
+            }
+            if (!empty($listNode['tasks'])) {
+                $projNode['lists'][] = $listNode;
+            }
+        }
+        if (!empty($projNode['lists'])) {
+            $treeData[] = $projNode;
+        }
+    }
+
+    // Sort projects alphabetically
+    usort($treeData, fn($a, $b) => strcasecmp($a['name'], $b['name']));
+
+    // Group sprint tasks by project → task list (sorted alpha, tasks by priority then alpha)
+    $grouped = $sprint->tasks
+        ->sortBy([
+            fn($a, $b) => ($priorityOrder[$a->priority ?? 'medium'] ?? 2)
+                       <=> ($priorityOrder[$b->priority ?? 'medium'] ?? 2),
+            fn($a, $b) => strcasecmp($a->title, $b->title),
+        ])
+        ->groupBy([
+            fn($t) => $t->project?->name ?? 'No Project',
+            fn($t) => $t->taskList?->name  ?? 'No Task List',
+        ]);
+    $grouped = $grouped->sortKeys();
+    $grouped = $grouped->map(fn($lists) => $lists->sortKeys());
 @endphp
 
 <div class="min-h-screen bg-gray-50" x-data="sprintBoard()">
@@ -82,7 +136,7 @@
                 </span>
                 <span class="text-xs text-gray-500">
                     <i class="fas fa-tasks mr-1"></i>
-                    <span id="visibleTaskCount">{{ $taskCount }}</span> {{ Str::plural('task', $taskCount) }}
+                    <span id="visibleTaskCount">{{ $visibleTaskCount }}</span> {{ Str::plural('task', $visibleTaskCount) }}
                 </span>
                 <span class="text-xs text-gray-500">
                     <i class="fas fa-check-circle mr-1 text-green-500"></i>{{ $doneCount }} completed
@@ -181,7 +235,7 @@
             </div>
         </div>
 
-        <!-- ── Add Task Tree Panel (drops below controls bar) ──────────── -->
+        <!-- ── Add Task Dual-Panel Picker ──────────────────────────────── -->
         <div x-show="showPanel" x-cloak
              x-transition:enter="transition ease-out duration-200"
              x-transition:enter-start="opacity-0 -translate-y-2"
@@ -195,18 +249,25 @@
             <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-blue-50">
                 <div class="flex items-center gap-2">
                     <i class="fas fa-sitemap text-blue-500 text-sm"></i>
-                    <span class="text-sm font-semibold text-gray-900">Select tasks to add to this sprint</span>
-                    @if($treeTaskTotal > 0)
-                    <span class="text-xs text-gray-400">({{ $treeTaskTotal }} available)</span>
-                    @endif
+                    <span class="text-sm font-semibold text-gray-900">Add Tasks to Sprint</span>
+                    <span class="text-xs text-gray-400">
+                        (<span x-text="selectedTasks.length"></span> selected)
+                    </span>
                 </div>
                 <div class="flex items-center gap-3">
-                    <!-- Search inside tree -->
+                    <!-- Hide Completed -->
+                    <label class="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
+                        <input type="checkbox" x-model="hideTreeCompleted"
+                               class="w-3.5 h-3.5 text-blue-600 rounded border-gray-300">
+                        Hide Completed
+                    </label>
+                    <!-- Search -->
                     <div class="relative">
-                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <i class="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
                         <input type="text" x-model="treeSearch" placeholder="Search tasks…"
-                               class="pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-52">
+                               class="pl-7 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-44">
                     </div>
+                    <!-- Close -->
                     <button @click="showPanel = false"
                             class="text-gray-400 hover:text-gray-600 transition-colors p-1">
                         <i class="fas fa-times"></i>
@@ -214,98 +275,140 @@
                 </div>
             </div>
 
-            <!-- Tree body -->
-            @if($treeTaskTotal === 0)
-            <div class="py-10 text-center text-gray-400 text-sm">
-                <i class="fas fa-check-double text-2xl block mb-2 text-green-400"></i>
-                All tasks are already in this sprint
-            </div>
-            @else
-            <div class="overflow-y-auto max-h-72 py-2 px-2">
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4">
-                    @foreach($projects as $proj)
-                    @php
-                        $listsWithTasks = $proj->taskLists->filter(fn($l) => $l->tasks->isNotEmpty());
-                        if ($listsWithTasks->isEmpty()) continue;
-                    @endphp
-                    <div x-data="{ openProj: false }" class="mb-1">
-                        <!-- Project row -->
-                        <button @click="openProj = !openProj"
-                                class="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors text-left">
-                            <i class="fas fa-chevron-right text-gray-400 text-xs transition-transform duration-150 flex-shrink-0"
-                               :class="{ 'rotate-90': openProj }"></i>
-                            <i class="fas fa-project-diagram text-blue-400 text-xs flex-shrink-0"></i>
-                            <span class="text-sm font-semibold text-gray-800 truncate flex-1">{{ $proj->name }}</span>
-                            <span class="text-xs text-gray-400 flex-shrink-0">
-                                {{ $listsWithTasks->sum(fn($l) => $l->tasks->count()) }}
-                            </span>
-                        </button>
+            <!-- Panel body: left = selected, right = tree -->
+            <div class="flex" style="height:360px;">
 
-                        <div x-show="openProj" x-cloak>
-                            @foreach($proj->taskLists as $list)
-                            @if($list->tasks->isNotEmpty())
-                            <div x-data="{ openList: false }" class="pl-6">
-                                <!-- Task List row -->
-                                <button @click="openList = !openList"
-                                        class="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-left">
-                                    <i class="fas fa-chevron-right text-gray-300 text-xs transition-transform duration-150 flex-shrink-0"
-                                       :class="{ 'rotate-90': openList }"></i>
-                                    <i class="fas fa-list text-purple-400 text-xs flex-shrink-0"></i>
-                                    <span class="text-xs font-medium text-gray-600 truncate flex-1">{{ $list->name }}</span>
-                                    <span class="text-xs text-gray-400 flex-shrink-0">{{ $list->tasks->count() }}</span>
-                                </button>
-
-                                <!-- Tasks -->
-                                <div x-show="openList" x-cloak class="pl-4 border-l border-gray-100 ml-2 mb-1">
-                                    @foreach($list->tasks as $task)
-                                    @php
-                                        $pBadge = match($task->priority ?? 'medium') {
-                                            'urgent' => 'bg-red-100 text-red-600',
-                                            'high'   => 'bg-orange-100 text-orange-600',
-                                            'medium' => 'bg-yellow-100 text-yellow-600',
-                                            default  => 'bg-gray-100 text-gray-500',
-                                        };
-                                    @endphp
-                                    <div class="tree-task-item flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-blue-50 group/task transition-colors"
-                                         data-tree-title="{{ strtolower($task->title) }}">
-                                        <div class="flex items-center gap-2 min-w-0 flex-1">
-                                            <span class="w-1.5 h-1.5 rounded-full flex-shrink-0
-                                                {{ match($task->task_status ?? 'pending') {
-                                                    'approved'    => 'bg-green-500',
-                                                    'in_progress' => 'bg-blue-500',
-                                                    'deployed'    => 'bg-purple-500',
-                                                    'unapproved'  => 'bg-red-400',
-                                                    default       => 'bg-gray-300'
-                                                } }}"></span>
-                                            <span class="text-xs text-gray-700 truncate flex-1">{{ $task->title }}</span>
-                                            <span class="text-xs px-1 py-0.5 rounded flex-shrink-0 {{ $pBadge }}">
-                                                {{ ucfirst($task->priority ?? 'medium') }}
-                                            </span>
-                                        </div>
-                                        <!-- Add to sprint -->
-                                        <form action="{{ route('sprints.tasks.add', $sprint->id) }}"
-                                              method="POST" class="flex-shrink-0">
-                                            @csrf
-                                            <input type="hidden" name="task_id" value="{{ $task->id }}">
-                                            <button type="submit" title="Add to sprint"
-                                                    class="opacity-0 group-hover/task:opacity-100 transition-opacity text-xs px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium whitespace-nowrap">
-                                                <i class="fas fa-plus mr-0.5"></i> Add
-                                            </button>
-                                        </form>
-                                    </div>
-                                    @endforeach
-                                </div>
-                            </div>
-                            @endif
-                            @endforeach
-                        </div>
+                <!-- LEFT: Selected tasks staging area -->
+                <div class="w-1/2 flex-shrink-0 flex flex-col border-r border-gray-100">
+                    <div class="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Selected</span>
+                        <span class="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full"
+                              x-text="selectedTasks.length"></span>
                     </div>
-                    @endforeach
+                    <div class="flex-1 overflow-y-auto p-2">
+                        <!-- Empty state -->
+                        <template x-if="selectedTasks.length === 0">
+                            <div class="flex flex-col items-center justify-center h-full text-center text-gray-400 py-8">
+                                <i class="fas fa-mouse-pointer text-2xl mb-2 text-gray-300"></i>
+                                <p class="text-xs leading-relaxed">Click tasks on the right<br>to select them</p>
+                            </div>
+                        </template>
+                        <!-- Selected task list -->
+                        <template x-for="task in selectedTasks" :key="task.id">
+                            <div class="flex items-start gap-2 px-2 py-2 rounded-lg bg-blue-50 border border-blue-100 mb-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5"
+                                      :class="{
+                                          'bg-green-500':  task.status === 'approved',
+                                          'bg-blue-500':   task.status === 'in_progress',
+                                          'bg-purple-500': task.status === 'deployed',
+                                          'bg-red-400':    task.status === 'unapproved',
+                                          'bg-gray-300':   !['approved','in_progress','deployed','unapproved'].includes(task.status)
+                                      }"></span>
+                                <div class="min-w-0 flex-1">
+                                    <div class="text-xs font-medium text-gray-800 truncate" x-text="task.title"></div>
+                                    <div class="text-xs text-gray-400 truncate mt-0.5"
+                                         x-text="task.projectName + ' › ' + task.listName"></div>
+                                </div>
+                                <button @click="deselectTask(task.id)"
+                                        class="flex-shrink-0 text-gray-300 hover:text-red-500 transition-colors w-5 h-5 flex items-center justify-center rounded hover:bg-red-50 mt-0.5">
+                                    <i class="fas fa-times text-xs"></i>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- RIGHT: Tree browser -->
+                <div class="w-1/2 overflow-y-auto p-2">
+                    <!-- No tasks available -->
+                    <template x-if="filteredProjects().length === 0">
+                        <div class="flex flex-col items-center justify-center h-full text-center text-gray-400">
+                            <i class="fas fa-check-double text-2xl mb-2 text-green-400"></i>
+                            <p class="text-sm">No tasks available to add</p>
+                        </div>
+                    </template>
+                    <!-- Projects -->
+                    <template x-for="proj in filteredProjects()" :key="proj.id">
+                        <div class="mb-1">
+                            <!-- Project row -->
+                            <button @click="toggleProject(proj.id)"
+                                    class="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors text-left">
+                                <i class="fas fa-chevron-right text-gray-400 text-xs transition-transform duration-150 flex-shrink-0"
+                                   :class="{ 'rotate-90': isProjectOpen(proj.id) }"></i>
+                                <i class="fas fa-project-diagram text-blue-400 text-xs flex-shrink-0"></i>
+                                <span class="text-sm font-semibold text-gray-800 truncate flex-1" x-text="proj.name"></span>
+                                <span class="text-xs text-gray-400 flex-shrink-0"
+                                      x-text="proj.lists.reduce((s,l) => s + l.tasks.length, 0)"></span>
+                            </button>
+                            <!-- Task Lists -->
+                            <div x-show="isProjectOpen(proj.id)">
+                                <template x-for="list in proj.lists" :key="list.id">
+                                    <div class="pl-6">
+                                        <!-- List row -->
+                                        <button @click="toggleList(list.id)"
+                                                class="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-left">
+                                            <i class="fas fa-chevron-right text-gray-300 text-xs transition-transform duration-150 flex-shrink-0"
+                                               :class="{ 'rotate-90': isListOpen(list.id) }"></i>
+                                            <i class="fas fa-list text-purple-400 text-xs flex-shrink-0"></i>
+                                            <span class="text-xs font-medium text-gray-600 truncate flex-1" x-text="list.name"></span>
+                                            <span class="text-xs text-gray-400 flex-shrink-0" x-text="list.tasks.length"></span>
+                                        </button>
+                                        <!-- Tasks -->
+                                        <div x-show="isListOpen(list.id)" class="pl-4 border-l border-gray-100 ml-2 mb-1">
+                                            <template x-for="task in list.tasks" :key="task.id">
+                                                <div @click="selectTask(task)"
+                                                     class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-blue-50 cursor-pointer transition-colors group/task">
+                                                    <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                                          :class="{
+                                                              'bg-green-500':  task.status === 'approved',
+                                                              'bg-blue-500':   task.status === 'in_progress',
+                                                              'bg-purple-500': task.status === 'deployed',
+                                                              'bg-red-400':    task.status === 'unapproved',
+                                                              'bg-gray-300':   !['approved','in_progress','deployed','unapproved'].includes(task.status)
+                                                          }"></span>
+                                                    <span class="text-xs text-gray-700 truncate flex-1" x-text="task.title"></span>
+                                                    <span class="text-xs px-1 py-0.5 rounded flex-shrink-0"
+                                                          :class="{
+                                                              'bg-red-100 text-red-600':      task.priority === 'urgent',
+                                                              'bg-orange-100 text-orange-600':task.priority === 'high',
+                                                              'bg-yellow-100 text-yellow-600':task.priority === 'medium',
+                                                              'bg-gray-100 text-gray-500':    task.priority === 'low'
+                                                          }"
+                                                          x-text="task.priority.charAt(0).toUpperCase() + task.priority.slice(1)"></span>
+                                                    <i class="fas fa-plus text-xs text-blue-400 opacity-0 group-hover/task:opacity-100 flex-shrink-0 transition-opacity"></i>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </div>
-            @endif
+
+            <!-- Panel footer -->
+            <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                <span class="text-xs text-gray-500">
+                    <span x-text="selectedTasks.length"></span> task(s) selected
+                </span>
+                <div class="flex items-center gap-2">
+                    <button @click="selectedTasks = []"
+                            x-show="selectedTasks.length > 0"
+                            class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
+                        Clear
+                    </button>
+                    <button @click="bulkAddSubmit()"
+                            :disabled="selectedTasks.length === 0"
+                            :class="selectedTasks.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'"
+                            class="px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg transition-colors flex items-center gap-2">
+                        <i class="fas fa-plus text-xs"></i>
+                        Add <span x-text="selectedTasks.length"></span> Task(s) to Sprint
+                    </button>
+                </div>
+            </div>
         </div>
-        <!-- ── END Tree Panel ──────────────────────────────────────────── -->
+        <!-- ── END Dual-Panel Picker ────────────────────────────────────── -->
 
         <!-- ── Sprint Tasks ─────────────────────────────────────────────── -->
 
@@ -319,178 +422,238 @@
         @else
 
         @php
-            // Build shared PHP vars per task (used in both grid & list)
+            $priBadge = fn($p) => match($p ?? 'medium') {
+                'urgent' => 'bg-red-100 text-red-800 border-red-200',
+                'high'   => 'bg-orange-100 text-orange-800 border-orange-200',
+                'medium' => 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                default  => 'bg-green-100 text-green-800 border-green-200',
+            };
+            $statusBadge = fn($s) => match($s ?? 'pending') {
+                'pending'                  => 'bg-gray-500 text-white border-gray-600',
+                'in_progress'              => 'bg-blue-100 text-blue-800 border-blue-200',
+                'completed_pending_review' => 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                'approved'                 => 'bg-green-100 text-green-800 border-green-200',
+                'unapproved'               => 'bg-red-100 text-red-800 border-red-200',
+                'deployed'                 => 'bg-purple-100 text-purple-800 border-purple-200',
+                default                    => 'bg-gray-100 text-gray-800 border-gray-200',
+            };
+            $taskTypeEmoji = fn($t) => match($t ?? 'general') {
+                'equipmentId'  => '🔧',
+                'customerName' => '👤',
+                default        => '📝',
+            };
         @endphp
 
         <!-- GRID VIEW -->
         <div x-show="viewMode === 'grid'" x-transition>
-            <div id="taskGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                @foreach($sprint->tasks as $task)
-                @php
-                    $tStatusStripe = match($task->task_status ?? 'pending') {
-                        'approved'                 => 'bg-green-500',
-                        'in_progress'              => 'bg-blue-500',
-                        'completed_pending_review' => 'bg-yellow-500',
-                        'deployed'                 => 'bg-purple-500',
-                        'unapproved'               => 'bg-red-400',
-                        default                    => 'bg-gray-300',
-                    };
-                    $tStatusBadge = match($task->task_status ?? 'pending') {
-                        'approved'                 => 'bg-green-100 text-green-800',
-                        'in_progress'              => 'bg-blue-100 text-blue-800',
-                        'completed_pending_review' => 'bg-yellow-100 text-yellow-800',
-                        'deployed'                 => 'bg-purple-100 text-purple-800',
-                        'unapproved'               => 'bg-red-100 text-red-700',
-                        default                    => 'bg-gray-100 text-gray-600',
-                    };
-                    $priorityBadge = match($task->priority ?? 'medium') {
-                        'urgent' => 'bg-red-100 text-red-700 border-red-200',
-                        'high'   => 'bg-orange-100 text-orange-700 border-orange-200',
-                        'medium' => 'bg-yellow-100 text-yellow-700 border-yellow-200',
-                        default  => 'bg-gray-100 text-gray-600 border-gray-200',
-                    };
-                    $isOverdue = $task->due_date && $task->due_date->isPast()
-                        && !in_array($task->task_status ?? 'pending', ['approved', 'deployed']);
-                @endphp
-                <div class="task-card bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all overflow-hidden group"
-                     data-title="{{ strtolower($task->title) }}"
-                     data-priority="{{ $task->priority ?? 'medium' }}"
-                     data-status="{{ $task->task_status ?? 'pending' }}">
-                    <div class="h-1.5 {{ $tStatusStripe }}"></div>
-                    <div class="p-4">
-                        <div class="flex items-start justify-between gap-2 mb-3">
-                            <a href="{{ route('tasks.show', $task->id) }}"
-                               class="text-sm font-semibold text-gray-900 hover:text-blue-600 transition-colors leading-snug line-clamp-2 flex-1">
-                                {{ $task->title }}
-                            </a>
-                            <form action="{{ route('sprints.tasks.remove', [$sprint->id, $task->id]) }}"
-                                  method="POST" class="flex-shrink-0">
-                                @csrf @method('DELETE')
-                                <button type="submit" title="Remove from sprint"
-                                        class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-500 text-xs w-6 h-6 flex items-center justify-center rounded hover:bg-red-50">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </form>
+            @foreach($grouped as $projectName => $lists)
+            <div class="sprint-project-group mb-8">
+                <!-- Project header -->
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="fas fa-project-diagram text-blue-400 text-sm"></i>
+                    <span class="text-sm font-bold text-gray-800">{{ $projectName }}</span>
+                    <div class="flex-1 h-px bg-gray-300 ml-1"></div>
+                </div>
+                <div class="space-y-4 pl-3">
+                @foreach($lists as $listName => $listTasks)
+                @php $listColor = $listTasks->first()?->taskList?->color ?? 'bg-gray-50'; @endphp
+                <div class="sprint-list-group bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+                    <!-- Task list card header (colored) -->
+                    <div class="px-5 py-4 {{ $listColor }} flex items-center justify-between">
+                        <h3 class="text-sm font-semibold text-gray-900">{{ $listName }}</h3>
+                        <span class="text-xs text-gray-600 font-medium">
+                            {{ $listTasks->count() }} {{ Str::plural('task', $listTasks->count()) }}
+                        </span>
+                    </div>
+                    <!-- Tasks inside the card — grid of task cards -->
+                    <div class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                        @foreach($listTasks as $task)
+                        @php
+                            $isOverdue = $task->due_date && $task->due_date->isPast()
+                                && !in_array($task->task_status ?? 'pending', ['approved','deployed']);
+                            $descText  = $task->description ? Str::limit(strip_tags($task->description), 70) : null;
+                        @endphp
+                        <div class="task-card bg-gray-50 border border-gray-200 rounded-lg hover:shadow-md hover:bg-white transition-all group overflow-hidden"
+                             data-task-id="{{ $task->id }}"
+                             data-title="{{ strtolower($task->title) }}"
+                             data-priority="{{ $task->priority ?? 'medium' }}"
+                             data-status="{{ $task->task_status ?? 'pending' }}">
+                            <div class="p-3">
+                                <!-- Title row -->
+                                <div class="flex items-start justify-between gap-1 mb-2">
+                                    <div class="flex items-start gap-1.5 flex-1 min-w-0">
+                                        <span class="flex-shrink-0 text-sm mt-0.5">{{ $taskTypeEmoji($task->task_type) }}</span>
+                                        <a href="{{ route('tasks.show', $task->id) }}"
+                                           class="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors line-clamp-2">
+                                            {{ $task->title }}
+                                        </a>
+                                    </div>
+                                    <form action="{{ route('sprints.tasks.remove', [$sprint->id, $task->id]) }}" method="POST" class="flex-shrink-0">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" title="Remove from sprint"
+                                                class="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-gray-300 hover:text-red-500">
+                                            <i class="fas fa-times text-xs"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                <!-- Badges -->
+                                <div class="flex flex-wrap gap-1 mb-2">
+                                    <span class="px-1.5 py-0.5 rounded-full text-xs font-medium border {{ $priBadge($task->priority) }}">
+                                        {{ ucfirst($task->priority ?? 'medium') }}
+                                    </span>
+                                    <span class="px-1.5 py-0.5 rounded-full text-xs font-medium border {{ $statusBadge($task->task_status) }}">
+                                        @if($task->task_status === 'completed_pending_review') Review
+                                        @else {{ ucfirst(str_replace('_', ' ', $task->task_status ?? 'pending')) }}
+                                        @endif
+                                    </span>
+                                </div>
+                                @if($descText)
+                                <p class="text-xs text-gray-500 mb-2 line-clamp-2">{{ $descText }}</p>
+                                @endif
+                                <!-- Meta -->
+                                <div class="flex items-center gap-2 text-xs text-gray-400">
+                                    @if($task->assignedUser)
+                                    <div class="flex items-center gap-1">
+                                        <div class="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                            <span class="text-xs font-medium text-blue-600">{{ strtoupper(substr($task->assignedUser->first_name, 0, 1)) }}</span>
+                                        </div>
+                                        <span class="truncate">{{ $task->assignedUser->first_name }}</span>
+                                    </div>
+                                    @endif
+                                    @if($task->due_date)
+                                    <div class="flex items-center gap-1 {{ $isOverdue ? 'text-red-500 font-medium' : '' }}">
+                                        <i class="fas fa-calendar w-3 h-3"></i>
+                                        <span>{{ $task->due_date->format('M j') }}</span>
+                                    </div>
+                                    @endif
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex items-center flex-wrap gap-1.5 mb-3">
-                            <span class="text-xs px-2 py-0.5 rounded-full border font-medium {{ $priorityBadge }}">
-                                {{ ucfirst($task->priority ?? 'medium') }}
-                            </span>
-                            <span class="text-xs px-2 py-0.5 rounded-full font-medium capitalize {{ $tStatusBadge }}">
-                                {{ str_replace('_', ' ', $task->task_status ?? 'pending') }}
-                            </span>
-                        </div>
-                        <div class="border-t border-gray-100 pt-3 flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-gray-400">
-                            @if($task->project)
-                            <span class="flex items-center gap-1"><i class="fas fa-project-diagram text-gray-300"></i>{{ $task->project->name }}</span>
-                            @endif
-                            @if($task->taskList)
-                            <span class="flex items-center gap-1"><i class="fas fa-list text-gray-300"></i>{{ $task->taskList->name }}</span>
-                            @endif
-                            @if($task->assignedUser)
-                            <span class="flex items-center gap-1"><i class="fas fa-user text-gray-300"></i>{{ $task->assignedUser->first_name }}</span>
-                            @endif
-                            @if($task->due_date)
-                            <span class="flex items-center gap-1 {{ $isOverdue ? 'text-red-500 font-medium' : '' }}">
-                                <i class="fas fa-calendar text-gray-300"></i>
-                                {{ $task->due_date->format('M d') }}
-                                @if($isOverdue)<span class="text-red-400">(overdue)</span>@endif
-                            </span>
-                            @endif
-                        </div>
+                        @endforeach
                     </div>
                 </div>
                 @endforeach
+                </div>
             </div>
+            @endforeach
         </div>
 
         <!-- LIST VIEW -->
         <div x-show="viewMode === 'list'" x-transition>
-            <div id="taskList" class="space-y-2">
-                @foreach($sprint->tasks as $task)
-                @php
-                    $tStatusStripe = match($task->task_status ?? 'pending') {
-                        'approved'                 => 'bg-green-500',
-                        'in_progress'              => 'bg-blue-500',
-                        'completed_pending_review' => 'bg-yellow-500',
-                        'deployed'                 => 'bg-purple-500',
-                        'unapproved'               => 'bg-red-400',
-                        default                    => 'bg-gray-300',
-                    };
-                    $tStatusBadge = match($task->task_status ?? 'pending') {
-                        'approved'                 => 'bg-green-100 text-green-800',
-                        'in_progress'              => 'bg-blue-100 text-blue-800',
-                        'completed_pending_review' => 'bg-yellow-100 text-yellow-800',
-                        'deployed'                 => 'bg-purple-100 text-purple-800',
-                        'unapproved'               => 'bg-red-100 text-red-700',
-                        default                    => 'bg-gray-100 text-gray-600',
-                    };
-                    $priorityBadge = match($task->priority ?? 'medium') {
-                        'urgent' => 'bg-red-100 text-red-700 border-red-200',
-                        'high'   => 'bg-orange-100 text-orange-700 border-orange-200',
-                        'medium' => 'bg-yellow-100 text-yellow-700 border-yellow-200',
-                        default  => 'bg-gray-100 text-gray-600 border-gray-200',
-                    };
-                    $isOverdue = $task->due_date && $task->due_date->isPast()
-                        && !in_array($task->task_status ?? 'pending', ['approved', 'deployed']);
-                @endphp
-                <div class="task-card bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all overflow-hidden group flex items-stretch"
-                     data-title="{{ strtolower($task->title) }}"
-                     data-priority="{{ $task->priority ?? 'medium' }}"
-                     data-status="{{ $task->task_status ?? 'pending' }}">
-                    <!-- Left status stripe -->
-                    <div class="w-1.5 flex-shrink-0 {{ $tStatusStripe }}"></div>
-                    <div class="flex-1 px-5 py-3 flex items-center gap-4">
-                        <!-- Title -->
-                        <div class="flex-1 min-w-0">
-                            <a href="{{ route('tasks.show', $task->id) }}"
-                               class="text-sm font-semibold text-gray-900 hover:text-blue-600 transition-colors truncate block">
-                                {{ $task->title }}
-                            </a>
-                            <div class="flex items-center flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-xs text-gray-400">
-                                @if($task->project)
-                                <span class="flex items-center gap-1"><i class="fas fa-project-diagram text-gray-300"></i>{{ $task->project->name }}</span>
-                                @endif
-                                @if($task->taskList)
-                                <span class="flex items-center gap-1"><i class="fas fa-list text-gray-300"></i>{{ $task->taskList->name }}</span>
-                                @endif
-                                @if($task->assignedUser)
-                                <span class="flex items-center gap-1"><i class="fas fa-user text-gray-300"></i>{{ $task->assignedUser->first_name }}</span>
-                                @endif
-                                @if($task->due_date)
-                                <span class="flex items-center gap-1 {{ $isOverdue ? 'text-red-500 font-medium' : '' }}">
-                                    <i class="fas fa-calendar text-gray-300"></i>
-                                    {{ $task->due_date->format('M d') }}
-                                    @if($isOverdue)<span>(overdue)</span>@endif
-                                </span>
-                                @endif
+            @foreach($grouped as $projectName => $lists)
+            <div class="sprint-project-group mb-8">
+                <!-- Project header -->
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="fas fa-project-diagram text-blue-400 text-sm"></i>
+                    <span class="text-sm font-bold text-gray-800">{{ $projectName }}</span>
+                    <div class="flex-1 h-px bg-gray-300 ml-1"></div>
+                </div>
+                @foreach($lists as $listName => $listTasks)
+                @php $listColor = $listTasks->first()?->taskList?->color ?? 'bg-gray-50'; @endphp
+                <div class="sprint-list-group mb-5 pl-3">
+                    <!-- Task list section (matches project view style) -->
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                        <!-- Task list header with color -->
+                        <div class="px-5 py-3 {{ $listColor }} border-b border-gray-200 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-list text-gray-500 text-xs"></i>
+                                <span class="text-sm font-semibold text-gray-900">{{ $listName }}</span>
                             </div>
+                            <span class="text-xs text-gray-600 bg-white bg-opacity-60 px-2 py-0.5 rounded-full font-medium">
+                                {{ $listTasks->count() }} {{ Str::plural('task', $listTasks->count()) }}
+                            </span>
                         </div>
-                        <!-- Badges -->
-                        <div class="flex items-center gap-2 flex-shrink-0">
-                            <span class="text-xs px-2 py-0.5 rounded-full border font-medium {{ $priorityBadge }}">
-                                {{ ucfirst($task->priority ?? 'medium') }}
-                            </span>
-                            <span class="text-xs px-2 py-0.5 rounded-full font-medium capitalize {{ $tStatusBadge }}">
-                                {{ str_replace('_', ' ', $task->task_status ?? 'pending') }}
-                            </span>
-                            <form action="{{ route('sprints.tasks.remove', [$sprint->id, $task->id]) }}"
-                                  method="POST">
-                                @csrf @method('DELETE')
-                                <button type="submit" title="Remove from sprint"
-                                        class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-500 text-xs w-6 h-6 flex items-center justify-center rounded hover:bg-red-50">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </form>
+                        <!-- Task rows -->
+                        <div class="divide-y divide-gray-100">
+                            @foreach($listTasks as $task)
+                            @php
+                                $isOverdue = $task->due_date && $task->due_date->isPast()
+                                    && !in_array($task->task_status ?? 'pending', ['approved','deployed']);
+                                $descText = $task->description ? Str::limit(strip_tags($task->description), 100) : null;
+                            @endphp
+                            <div class="task-card px-6 py-4 hover:bg-gray-50 transition-colors group"
+                                 data-task-id="{{ $task->id }}"
+                                 data-title="{{ strtolower($task->title) }}"
+                                 data-priority="{{ $task->priority ?? 'medium' }}"
+                                 data-status="{{ $task->task_status ?? 'pending' }}">
+                                <div class="flex items-center justify-between relative">
+                                    <div class="flex items-start space-x-4 flex-1 min-w-0">
+                                        <!-- Task type emoji -->
+                                        <div class="flex-shrink-0 pt-0.5">
+                                            <span class="text-lg">{{ $taskTypeEmoji($task->task_type) }}</span>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-start justify-between mb-1">
+                                                <h3 class="text-sm font-medium text-gray-900">
+                                                    <a href="{{ route('tasks.show', $task->id) }}"
+                                                       class="hover:text-blue-600 transition-colors">{{ $task->title }}</a>
+                                                </h3>
+                                                <!-- Badges top-right -->
+                                                <div class="flex items-center gap-1.5 absolute right-8 top-0 flex-shrink-0">
+                                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium border {{ $priBadge($task->priority) }}">
+                                                        {{ ucfirst($task->priority ?? 'medium') }}
+                                                    </span>
+                                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium border {{ $statusBadge($task->task_status) }}">
+                                                        @if($task->task_status === 'completed_pending_review') Review
+                                                        @else {{ ucfirst(str_replace('_', ' ', $task->task_status ?? 'pending')) }}
+                                                        @endif
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            @if($descText)
+                                            <p class="text-sm text-gray-500 mb-2">{{ $descText }}</p>
+                                            @endif
+                                            <!-- Meta row -->
+                                            <div class="flex items-center space-x-4 text-xs text-gray-500">
+                                                @if($task->assignedUser)
+                                                <div class="flex items-center space-x-1.5">
+                                                    <div class="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
+                                                        <span class="text-xs font-medium text-blue-600">{{ strtoupper(substr($task->assignedUser->first_name, 0, 2)) }}</span>
+                                                    </div>
+                                                    <span>{{ $task->assignedUser->first_name }} {{ $task->assignedUser->last_name }}</span>
+                                                </div>
+                                                @else
+                                                <div class="flex items-center space-x-1 text-gray-400">
+                                                    <i class="fas fa-users w-4 h-4"></i>
+                                                    <span>Unassigned</span>
+                                                </div>
+                                                @endif
+                                                @if($task->due_date)
+                                                <div class="flex items-center space-x-1 {{ $isOverdue ? 'text-red-600 font-medium' : '' }}">
+                                                    <i class="fas fa-calendar w-3 h-3"></i>
+                                                    <span>Due: {{ $task->due_date->format('M j') }}</span>
+                                                </div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- Hover actions -->
+                                    <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                        <a href="{{ route('tasks.show', $task->id) }}"
+                                           class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="View Task">
+                                            <i class="fas fa-eye w-4 h-4"></i>
+                                        </a>
+                                        <form action="{{ route('sprints.tasks.remove', [$sprint->id, $task->id]) }}" method="POST">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" title="Remove from sprint"
+                                                    class="p-2 text-gray-400 hover:text-red-500 transition-colors">
+                                                <i class="fas fa-unlink w-4 h-4"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            @endforeach
                         </div>
                     </div>
                 </div>
                 @endforeach
             </div>
+            @endforeach
         </div>
 
         <!-- Filtered-out empty state -->
-        <div id="filterEmpty" class="hidden py-12 text-center bg-white rounded-xl border border-gray-200 shadow-sm mt-4">
+        <div id="filterEmpty" class="hidden py-12 text-center bg-white rounded-lg border border-gray-200 shadow-sm mt-4">
             <i class="fas fa-search text-3xl text-gray-300 mb-3 block"></i>
             <p class="text-gray-500 text-sm">No tasks match the current filters.</p>
             <button onclick="resetFilters()"
@@ -508,23 +671,87 @@ function sprintBoard() {
     return {
         showPanel: false,
         treeSearch: '',
+        hideTreeCompleted: true,
         viewMode: 'grid',
+        selectedTasks: [],
+        openProjects: [],
+        openLists: [],
+        treeData: @json($treeData),
+
+        get selectedIds() {
+            return this.selectedTasks.map(t => t.id);
+        },
+
+        filteredProjects() {
+            const search       = this.treeSearch.toLowerCase().trim();
+            const selectedIds  = this.selectedIds;
+            const hideComplete = this.hideTreeCompleted;
+            return this.treeData.map(proj => {
+                const lists = proj.lists.map(list => {
+                    const tasks = list.tasks.filter(task => {
+                        if (selectedIds.includes(task.id))              return false;
+                        if (hideComplete && task.status === 'approved') return false;
+                        if (search && !task.title.toLowerCase().includes(search)) return false;
+                        return true;
+                    });
+                    return { ...list, tasks };
+                }).filter(list => list.tasks.length > 0);
+                return { ...proj, lists };
+            }).filter(proj => proj.lists.length > 0);
+        },
+
+        toggleProject(id) {
+            const idx = this.openProjects.indexOf(id);
+            if (idx === -1) this.openProjects.push(id);
+            else            this.openProjects.splice(idx, 1);
+        },
+        isProjectOpen(id) { return this.openProjects.includes(id); },
+
+        toggleList(id) {
+            const idx = this.openLists.indexOf(id);
+            if (idx === -1) this.openLists.push(id);
+            else            this.openLists.splice(idx, 1);
+        },
+        isListOpen(id) { return this.openLists.includes(id); },
+
+        selectTask(task) {
+            if (!this.selectedIds.includes(task.id)) {
+                this.selectedTasks.push(task);
+            }
+        },
+
+        deselectTask(taskId) {
+            this.selectedTasks = this.selectedTasks.filter(t => t.id !== taskId);
+        },
+
+        bulkAddSubmit() {
+            if (this.selectedTasks.length === 0) return;
+            const form  = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ route("sprints.tasks.bulkAdd", $sprint->id) }}';
+            const csrf  = document.createElement('input');
+            csrf.type   = 'hidden';
+            csrf.name   = '_token';
+            csrf.value  = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            form.appendChild(csrf);
+            this.selectedTasks.forEach(task => {
+                const inp  = document.createElement('input');
+                inp.type   = 'hidden';
+                inp.name   = 'task_ids[]';
+                inp.value  = task.id;
+                form.appendChild(inp);
+            });
+            document.body.appendChild(form);
+            form.submit();
+        },
+
         init() {
             const saved = localStorage.getItem('sprintShowViewMode');
             if (saved === 'list') this.viewMode = 'list';
             this.$watch('viewMode', v => localStorage.setItem('sprintShowViewMode', v));
-            this.$watch('treeSearch', v => filterTreeTasks(v));
             this.$nextTick(() => filterSprintTasks());
         }
     };
-}
-
-function filterTreeTasks(search) {
-    const q = (search || '').toLowerCase().trim();
-    document.querySelectorAll('.tree-task-item').forEach(item => {
-        const title = item.dataset.treeTitle || '';
-        item.style.display = (!q || title.includes(q)) ? '' : 'none';
-    });
 }
 
 function filterSprintTasks() {
@@ -532,21 +759,38 @@ function filterSprintTasks() {
     const priority      = document.getElementById('priorityFilter')?.value || '';
     const hideCompleted = document.getElementById('hideCompleted')?.checked ?? false;
 
-    let visible = 0;
+    // Use a Set to deduplicate across grid/list renders
+    const visibleIds = new Set();
     document.querySelectorAll('.task-card').forEach(card => {
-        const title  = card.dataset.title || '';
+        const title  = card.dataset.title    || '';
         const prio   = card.dataset.priority || '';
-        const status = card.dataset.status || '';
+        const status = card.dataset.status   || '';
+        const taskId = card.dataset.taskId;
 
         let show = true;
-        if (search   && !title.includes(search))   show = false;
-        if (priority && prio !== priority)          show = false;
-        if (hideCompleted && status === 'approved') show = false;
+        if (search        && !title.includes(search)) show = false;
+        if (priority      && prio !== priority)        show = false;
+        if (hideCompleted && status === 'approved')    show = false;
 
         card.style.display = show ? '' : 'none';
-        if (show) visible++;
+        if (show && taskId) visibleIds.add(taskId);
     });
 
+    // Hide task list group headers when all their tasks are filtered out
+    document.querySelectorAll('.sprint-list-group').forEach(group => {
+        const hasVisible = Array.from(group.querySelectorAll('.task-card'))
+            .some(c => c.style.display !== 'none');
+        group.style.display = hasVisible ? '' : 'none';
+    });
+
+    // Hide project group headers when all their task lists are filtered out
+    document.querySelectorAll('.sprint-project-group').forEach(group => {
+        const hasVisible = Array.from(group.querySelectorAll('.task-card'))
+            .some(c => c.style.display !== 'none');
+        group.style.display = hasVisible ? '' : 'none';
+    });
+
+    const visible = visibleIds.size;
     const countEl = document.getElementById('visibleTaskCount');
     if (countEl) countEl.textContent = visible;
 

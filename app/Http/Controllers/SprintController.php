@@ -138,6 +138,24 @@ class SprintController extends Controller
     }
 
     /**
+     * Bulk add multiple tasks to the sprint.
+     */
+    public function bulkAddTasks(Request $request, Sprint $sprint)
+    {
+        $request->validate([
+            'task_ids'   => 'required|array|min:1',
+            'task_ids.*' => 'exists:tasks,id',
+        ]);
+
+        Task::whereIn('id', $request->task_ids)->update(['sprint_id' => $sprint->id]);
+
+        $count = count($request->task_ids);
+
+        return redirect()->route('sprints.show', $sprint->id)
+            ->with('success', $count . ' task(s) added to sprint.');
+    }
+
+    /**
      * Remove a task from the sprint (back to backlog).
      */
     public function removeTask(Request $request, Sprint $sprint, Task $task)

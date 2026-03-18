@@ -9,6 +9,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\SprintController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskListController;
+use App\Http\Controllers\TaskListTemplateController;
 use App\Http\Controllers\TaskTemplateController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -80,6 +81,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/tasks/{task}/comments', [CommentController::class, 'store'])->name('comments.store');
     Route::put('/tasks/{task}/comments/{comment}', [CommentController::class, 'update'])->name('comments.update');
     Route::delete('/tasks/{task}/comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
+
+    // Task List Templates
+    Route::get('/task-list-templates', [TaskListTemplateController::class, 'index'])->name('task-list-templates.index');
+    Route::get('/api/task-list-templates', [TaskListTemplateController::class, 'getTemplatesApi'])->name('task-list-templates.api');
+    Route::post('/task-list-templates', [TaskListTemplateController::class, 'store'])->name('task-list-templates.store');
+    Route::put('/task-list-templates/{taskListTemplate}', [TaskListTemplateController::class, 'update'])->name('task-list-templates.update');
+    Route::delete('/task-list-templates/{taskListTemplate}', [TaskListTemplateController::class, 'destroy'])->name('task-list-templates.destroy');
 
     // Task Templates
     Route::get('/task-templates', [TaskTemplateController::class, 'index'])->name('task-templates.index');

@@ -21,8 +21,8 @@
             task_types: []
         };
         this.editingTemplate = null;
-        if (typeof templateEditor !== 'undefined' && templateEditor) {
-            templateEditor.setData('');
+        if (window.templateEditor) {
+            window.templateEditor.setData('');
         }
     },
     handleCancel() {
@@ -38,14 +38,12 @@
             task_types: template.task_types || []
         };
         this.showAddForm = true;
-        // Set CKEditor content after form is visible and editor is initialized
         setTimeout(() => {
-            if (typeof templateEditor !== 'undefined' && templateEditor) {
-                templateEditor.setData(template.template_text || '');
-            } else {
-                initTemplateEditor(template.template_text || '');
+            if (window.templateEditor) {
+                window.templateEditor.setData(template.template_text || '');
             }
-        }, 100);
+            document.getElementById('template_text').value = template.template_text || '';
+        }, 200);
     },
     toggleTaskType(type) {
         const index = this.formData.task_types.indexOf(type);
@@ -86,7 +84,7 @@
         <div x-show="showAddForm" x-cloak class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 class="text-lg font-semibold text-gray-900 mb-4" x-text="editingTemplate ? 'Edit Template' : 'Add New Template'"></h2>
 
-            <form :action="editingTemplate ? '{{ url('task-templates') }}/' + editingTemplate.id : '{{ route('task-templates.store') }}'" method="POST" @submit="if (typeof templateEditor !== 'undefined' && templateEditor) { document.getElementById('template_text').value = templateEditor.getData(); }">
+            <form :action="editingTemplate ? '{{ url('task-templates') }}/' + editingTemplate.id : '{{ route('task-templates.store') }}'" method="POST" @submit="if (window.templateEditor) { document.getElementById('template_text').value = window.templateEditor.getData(); }">
                 @csrf
                 <input type="hidden" name="_method" x-bind:value="editingTemplate ? 'PUT' : 'POST'">
                 
@@ -114,8 +112,6 @@
                         <textarea
                             id="template_text"
                             name="template_text"
-                            x-model="formData.template_text"
-                            required
                             style="display: none;"
                         ></textarea>
                     </div>
@@ -226,29 +222,37 @@
                         $groupedTemplates['Universal'][] = $template;
                     } else {
                         $taskTypes = $template->task_types ?? [];
-                        foreach($taskTypes as $taskType) {
-                            $label = match($taskType) {
-                                'general' => 'General',
-                                'equipmentId' => 'Equipment ID',
-                                'customerName' => 'Customer',
-                                default => $taskType
-                            };
-                            
-                            if(!isset($groupedTemplates[$label])) {
-                                $groupedTemplates[$label] = [];
+                        if(empty($taskTypes)) {
+                            // Template has no task types and is not universal → show under General
+                            if(!isset($groupedTemplates['General'])) {
+                                $groupedTemplates['General'] = [];
                             }
-                            
-                            // Check if template already exists in this group
-                            $exists = false;
-                            foreach($groupedTemplates[$label] as $existingTemplate) {
-                                if($existingTemplate->id === $template->id) {
-                                    $exists = true;
-                                    break;
+                            $groupedTemplates['General'][] = $template;
+                        } else {
+                            foreach($taskTypes as $taskType) {
+                                $label = match($taskType) {
+                                    'general' => 'General',
+                                    'equipmentId' => 'Equipment ID',
+                                    'customerName' => 'Customer',
+                                    default => $taskType
+                                };
+
+                                if(!isset($groupedTemplates[$label])) {
+                                    $groupedTemplates[$label] = [];
                                 }
-                            }
-                            
-                            if(!$exists) {
-                                $groupedTemplates[$label][] = $template;
+
+                                // Avoid duplicates within the same group
+                                $exists = false;
+                                foreach($groupedTemplates[$label] as $existingTemplate) {
+                                    if($existingTemplate->id === $template->id) {
+                                        $exists = true;
+                                        break;
+                                    }
+                                }
+
+                                if(!$exists) {
+                                    $groupedTemplates[$label][] = $template;
+                                }
                             }
                         }
                     }
@@ -451,83 +455,80 @@
 }
 </style>
 
-<!-- CKEditor 5 CDN -->
-<script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
+<!-- CKEditor 5 -->
+<script src="https://cdn.ckeditor.com/ckeditor5/41.0.0/classic/ckeditor.js"></script>
 <script>
-let templateEditor = null;
+var templateEditor = null;
 
-function initTemplateEditor(initialData = '') {
-    if (templateEditor) {
-        templateEditor.setData(initialData);
-        return;
-    }
-    
-    ClassicEditor
-        .create(document.querySelector('#template_text_editor'), {
-            toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'blockQuote', 'insertTable', '|', 'undo', 'redo'],
-            placeholder: 'Enter the template description text...',
-            link: {
-                defaultProtocol: 'https://',
-                decorators: {
-                    openInNewTab: {
-                        mode: 'manual',
-                        label: 'Open in a new tab',
-                        attributes: {
-                            target: '_blank',
-                            rel: 'noopener noreferrer'
+document.addEventListener('alpine:init', () => {
+    // Watch showAddForm; when form opens, init CKEditor (mirrors tasks/create pattern)
+    setTimeout(() => {
+        const component = document.querySelector('[x-data]');
+        if (!component || !window.Alpine) return;
+
+        Alpine.$data(component).$watch('showAddForm', (value) => {
+            if (!value) return;
+            setTimeout(() => {
+                if (templateEditor) return; // already initialised
+
+                ClassicEditor
+                    .create(document.querySelector('#template_text_editor'), {
+                        toolbar: {
+                            items: [
+                                'heading', '|',
+                                'bold', 'italic', 'underline', 'strikethrough', '|',
+                                'bulletedList', 'numberedList', '|',
+                                'link', 'blockQuote', 'insertTable', '|',
+                                'undo', 'redo'
+                            ]
+                        },
+                        placeholder: 'Enter the template description text...',
+                        link: {
+                            decorators: {
+                                openInNewTab: {
+                                    mode: 'manual',
+                                    label: 'Open in a new tab',
+                                    attributes: {
+                                        target: '_blank',
+                                        rel: 'noopener noreferrer'
+                                    }
+                                }
+                            }
                         }
-                    }
-                }
-            }
-        })
-        .then(editor => {
-            templateEditor = editor;
-            
-            if (initialData) {
-                editor.setData(initialData);
-            }
-            
-            // Sync CKEditor content to the hidden textarea on every change
-            editor.model.document.on('change:data', () => {
-                const data = editor.getData();
-                document.getElementById('template_text').value = data;
-                
-                // Update Alpine.js data
-                const alpineComponent = document.querySelector('[x-data*="showAddForm"]');
-                if (alpineComponent && window.Alpine) {
-                    Alpine.$data(alpineComponent).formData.template_text = data;
-                }
-            });
-            
-            // Set height
-            const editableElement = editor.ui.view.editable.element;
-            if (editableElement) {
-                editableElement.style.minHeight = '120px';
-            }
-        })
-        .catch(error => {
-            console.error('CKEditor initialization error:', error);
-        });
-}
+                    })
+                    .then(editor => {
+                        templateEditor = editor;
+                        window.templateEditor = editor;
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Watch for the form to become visible using Alpine.js event
-    document.addEventListener('alpine:initialized', () => {
-        const alpineComponent = document.querySelector('[x-data*="showAddForm"]');
-        if (alpineComponent && window.Alpine) {
-            const alpineData = Alpine.$data(alpineComponent);
-            
-            // Override showAddForm setter to init editor when form opens
-            Alpine.$data(alpineComponent).$watch('showAddForm', (value) => {
-                if (value) {
-                    setTimeout(() => {
-                        const currentData = Alpine.$data(alpineComponent).formData.template_text || '';
-                        initTemplateEditor(currentData);
-                    }, 50);
-                }
-            });
-        }
-    });
+                        // Set height
+                        const editorElement = editor.ui.getEditableElement();
+                        if (editorElement) {
+                            editorElement.style.minHeight = '120px';
+                            editorElement.style.height = '120px';
+                        }
+
+                        // Load any pre-existing content (edit mode)
+                        const initialContent = document.getElementById('template_text').value;
+                        if (initialContent) {
+                            editor.setData(initialContent);
+                        }
+
+                        // Sync to hidden textarea + Alpine on every change
+                        editor.model.document.on('change:data', () => {
+                            const data = editor.getData();
+                            document.getElementById('template_text').value = data;
+                            const comp = document.querySelector('[x-data]');
+                            if (comp && window.Alpine) {
+                                Alpine.$data(comp).formData.template_text = data;
+                            }
+                        });
+                    })
+                    .catch(error => {
+                        console.error('CKEditor init error:', error);
+                    });
+            }, 100);
+        });
+    }, 0);
 });
 </script>
 @endsection

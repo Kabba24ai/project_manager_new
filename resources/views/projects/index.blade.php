@@ -33,10 +33,44 @@
             <div class="flex justify-between items-center">
                 <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
                 <div class="flex items-center space-x-3">
-                    <a href="{{ route('task-templates.index') }}" class="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-blue-600 border border-gray-300 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors">
-                        <i class="fas fa-cog"></i>
-                        <span>Manage Templates</span>
-                    </a>
+                    <!-- Templates dropdown -->
+                    <div x-data="{ open: false }" class="relative">
+                        <button @click="open = !open" class="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-blue-600 border border-gray-300 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors">
+                            <i class="fas fa-cog"></i>
+                            <span>Manage Templates</span>
+                            <i class="fas fa-chevron-down text-xs ml-1" :class="open ? 'rotate-180' : ''" style="transition: transform 0.2s"></i>
+                        </button>
+                        <!-- Dropdown panel -->
+                        <div x-show="open" x-cloak @click.outside="open = false"
+                             x-transition:enter="transition ease-out duration-150"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-100"
+                             x-transition:leave-start="opacity-100 scale-100"
+                             x-transition:leave-end="opacity-0 scale-95"
+                             class="absolute right-0 mt-2 w-56 bg-white rounded-xl border border-gray-200 shadow-xl z-50 py-1.5">
+                            <a href="{{ route('task-templates.index') }}"
+                               class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                                <div class="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-file-alt text-blue-600 text-xs"></i>
+                                </div>
+                                <div>
+                                    <div class="font-medium">Task Description</div>
+                                    <div class="text-xs text-gray-400">Reusable task templates</div>
+                                </div>
+                            </a>
+                            <a href="{{ route('task-list-templates.index') }}"
+                               class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors">
+                                <div class="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-layer-group text-green-600 text-xs"></i>
+                                </div>
+                                <div>
+                                    <div class="font-medium">Task List</div>
+                                    <div class="text-xs text-gray-400">Pre-built list structures</div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
                     <!-- Users dropdown -->
                     <div x-data="{ open: false }" class="relative">
                         <button @click="open = !open" class="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-blue-600 border border-gray-300 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors">

@@ -184,27 +184,31 @@ class TaskController extends Controller
 
         // Process temp uploaded files
         $uploadedFileIds = $request->input('uploaded_files', []);
-        $tempFiles = session('temp_uploads', []);
-        
+        $tempSessionFiles = session('temp_uploads', []);
+
         foreach ($uploadedFileIds as $tempId) {
-            if (!isset($tempFiles[$tempId])) {
+            // Prefer JSON sidecar (concurrent-safe), fall back to session
+            $sidecarPath = 'temp_uploads/' . $tempId . '.json';
+            if (Storage::disk('local')->exists($sidecarPath)) {
+                $tempFile = json_decode(Storage::disk('local')->get($sidecarPath), true);
+            } elseif (isset($tempSessionFiles[$tempId])) {
+                $tempFile = $tempSessionFiles[$tempId];
+            } else {
                 continue;
             }
 
-            $tempFile = $tempFiles[$tempId];
             $tempPath = $tempFile['path'];
-
             if (!Storage::disk('local')->exists($tempPath)) {
+                Storage::disk('local')->delete($sidecarPath);
                 continue;
             }
 
-            // Generate new filename
             $ext = pathinfo($tempFile['original_name'], PATHINFO_EXTENSION);
             $storedName = (string) Str::uuid() . ($ext ? '.' . $ext : '');
             $newPath = "tasks/{$task->id}/{$storedName}";
 
-            // Move from temp to permanent storage
             Storage::disk('local')->move($tempPath, $newPath);
+            Storage::disk('local')->delete($sidecarPath);
 
             $attachment = Attachment::create([
                 'attachable_type' => Task::class,
@@ -217,17 +221,14 @@ class TaskController extends Controller
                 'uploaded_by' => Auth::id(),
             ]);
 
-            // Generate thumbnail for images
             if (in_array($attachment->mime_type, ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'])) {
                 app(AttachmentController::class)->generateImageThumbnail($attachment);
             }
 
-            // Remove from temp files array
-            unset($tempFiles[$tempId]);
+            unset($tempSessionFiles[$tempId]);
         }
 
-        // Update session
-        session(['temp_uploads' => $tempFiles]);
+        session(['temp_uploads' => $tempSessionFiles]);
 
         // Create service call if provided
         if ($request->filled('service_call_type') && $request->service_call_type !== 'none' && $request->filled('service_call_order_id')) {
@@ -427,6 +428,8 @@ class TaskController extends Controller
             'project_id' => 'nullable|exists:projects,id',
             'attachments' => 'nullable|array',
             'attachments.*' => 'file|max:102400|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,webm,pdf',
+            'uploaded_files' => 'nullable|array',
+            'uploaded_files.*' => 'string',
             'customer_id' => 'nullable|integer',
             'order_id' => 'nullable|string',
             'customer_type' => 'nullable|in:general,charge,refund',
@@ -507,7 +510,7 @@ class TaskController extends Controller
             $storedName = (string) Str::uuid() . ($ext ? '.' . $ext : '');
             $storedPath = $file->storeAs("tasks/{$task->id}", $storedName, 'local');
 
-            Attachment::create([
+            $attachment = Attachment::create([
                 'attachable_type' => Task::class,
                 'attachable_id' => $task->id,
                 'filename' => $storedName,
@@ -517,7 +520,59 @@ class TaskController extends Controller
                 'size' => $file->getSize(),
                 'uploaded_by' => Auth::id(),
             ]);
+
+            if (in_array($attachment->mime_type, ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'])) {
+                app(AttachmentController::class)->generateImageThumbnail($attachment);
+            }
         }
+
+        // Process temp uploaded files (uploaded via XHR before form submission)
+        $uploadedFileIds = $request->input('uploaded_files', []);
+        $tempSessionFiles = session('temp_uploads', []);
+
+        foreach ($uploadedFileIds as $tempId) {
+            // Prefer JSON sidecar (concurrent-safe), fall back to session
+            $sidecarPath = 'temp_uploads/' . $tempId . '.json';
+            if (Storage::disk('local')->exists($sidecarPath)) {
+                $tempFile = json_decode(Storage::disk('local')->get($sidecarPath), true);
+            } elseif (isset($tempSessionFiles[$tempId])) {
+                $tempFile = $tempSessionFiles[$tempId];
+            } else {
+                continue;
+            }
+
+            $tempPath = $tempFile['path'];
+            if (!Storage::disk('local')->exists($tempPath)) {
+                Storage::disk('local')->delete($sidecarPath);
+                continue;
+            }
+
+            $ext = pathinfo($tempFile['original_name'], PATHINFO_EXTENSION);
+            $storedName = (string) Str::uuid() . ($ext ? '.' . $ext : '');
+            $newPath = "tasks/{$task->id}/{$storedName}";
+
+            Storage::disk('local')->move($tempPath, $newPath);
+            Storage::disk('local')->delete($sidecarPath);
+
+            $attachment = Attachment::create([
+                'attachable_type' => Task::class,
+                'attachable_id' => $task->id,
+                'filename' => $storedName,
+                'original_filename' => $tempFile['original_name'],
+                'path' => $newPath,
+                'mime_type' => $tempFile['mime_type'],
+                'size' => $tempFile['size'],
+                'uploaded_by' => Auth::id(),
+            ]);
+
+            if (in_array($attachment->mime_type, ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'])) {
+                app(AttachmentController::class)->generateImageThumbnail($attachment);
+            }
+
+            unset($tempSessionFiles[$tempId]);
+        }
+
+        session(['temp_uploads' => $tempSessionFiles]);
 
         $task->load('assignedUser');
 

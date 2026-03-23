@@ -39,41 +39,44 @@ class CommentController extends Controller
 
         // Handle uploaded file attachments
         if ($request->has('uploaded_files') && is_array($request->uploaded_files)) {
-            $tempFiles = session('temp_uploads', []);
-            
+            $tempSessionFiles = session('temp_uploads', []);
+
             foreach ($request->uploaded_files as $tempId) {
-                // Get file info from session
-                if (isset($tempFiles[$tempId])) {
-                    $fileData = $tempFiles[$tempId];
-                    
-                    if (\Storage::disk('local')->exists($fileData['path'])) {
-                        $fileName = time() . '_' . uniqid() . '.' . pathinfo($fileData['original_name'], PATHINFO_EXTENSION);
-                        $permanentPath = 'attachments/' . $fileName;
-                        
-                        // Copy file to permanent location using Storage facade
-                        \Storage::disk('local')->put($permanentPath, \Storage::disk('local')->get($fileData['path']));
-                        
-                        // Create attachment record
-                        $comment->attachments()->create([
-                            'filename' => $fileName,
-                            'original_filename' => $fileData['original_name'],
-                            'path' => $permanentPath,
-                            'mime_type' => $fileData['mime_type'],
-                            'size' => $fileData['size'],
-                            'uploaded_by' => Auth::id(),
-                        ]);
-                        
-                        // Clean up temp file using Storage facade
-                        \Storage::disk('local')->delete($fileData['path']);
-                        
-                        // Remove from session
-                        unset($tempFiles[$tempId]);
-                    }
+                // Prefer JSON sidecar (concurrent-safe), fall back to session
+                $sidecarPath = 'temp_uploads/' . $tempId . '.json';
+                if (\Storage::disk('local')->exists($sidecarPath)) {
+                    $fileData = json_decode(\Storage::disk('local')->get($sidecarPath), true);
+                } elseif (isset($tempSessionFiles[$tempId])) {
+                    $fileData = $tempSessionFiles[$tempId];
+                } else {
+                    continue;
                 }
+
+                if (!\Storage::disk('local')->exists($fileData['path'])) {
+                    \Storage::disk('local')->delete($sidecarPath);
+                    continue;
+                }
+
+                $ext = pathinfo($fileData['original_name'], PATHINFO_EXTENSION);
+                $fileName = (string) \Illuminate\Support\Str::uuid() . ($ext ? '.' . $ext : '');
+                $permanentPath = 'attachments/' . $fileName;
+
+                \Storage::disk('local')->move($fileData['path'], $permanentPath);
+                \Storage::disk('local')->delete($sidecarPath);
+
+                $comment->attachments()->create([
+                    'filename' => $fileName,
+                    'original_filename' => $fileData['original_name'],
+                    'path' => $permanentPath,
+                    'mime_type' => $fileData['mime_type'],
+                    'size' => $fileData['size'],
+                    'uploaded_by' => Auth::id(),
+                ]);
+
+                unset($tempSessionFiles[$tempId]);
             }
-            
-            // Update session
-            session(['temp_uploads' => $tempFiles]);
+
+            session(['temp_uploads' => $tempSessionFiles]);
         }
 
         $comment->load('user');

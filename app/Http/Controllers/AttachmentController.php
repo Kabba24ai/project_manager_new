@@ -238,16 +238,21 @@ class AttachmentController extends Controller
         // Store in temp directory
         $path = $file->storeAs('temp_uploads', $filename, 'local');
 
-        // Store metadata in session for later retrieval
-        $tempFiles = session('temp_uploads', []);
-        $tempFiles[$tempId] = [
+        $meta = [
             'path' => $path,
             'original_name' => $file->getClientOriginalName(),
             'mime_type' => $file->getMimeType(),
             'size' => $file->getSize(),
         ];
+
+        // Store metadata in a per-file JSON sidecar (concurrent-safe — no shared session writes)
+        \Storage::disk('local')->put('temp_uploads/' . $tempId . '.json', json_encode($meta));
+
+        // Also keep session for any legacy code paths
+        $tempFiles = session('temp_uploads', []);
+        $tempFiles[$tempId] = $meta;
         session(['temp_uploads' => $tempFiles]);
-        session()->save(); // Release session lock early so concurrent uploads don't block each other
+        session()->save();
 
         return response()->json([
             'success' => true,

@@ -60,7 +60,7 @@
 
                     <div class="flex gap-2 pb-4">
                         <button type="button" id="cancelDiscountBtn" class="px-4 py-2 flex-1 text-sm rounded border border-gray-300 bg-white text-gray-700">
-                            Cancel
+                            Back
                         </button>
                         <button type="submit" id="submitDiscountBtn" class="relative flex-1 px-4 py-2 text-sm rounded bg-blue-600 text-white flex items-center justify-center gap-2">
                             <span id="discountBtnText">Add Discount</span>

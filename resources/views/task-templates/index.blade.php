@@ -179,7 +179,7 @@
                         @click="handleCancel()"
                         class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                     >
-                        Cancel
+                        Back
                     </button>
                     <button
                         type="submit"

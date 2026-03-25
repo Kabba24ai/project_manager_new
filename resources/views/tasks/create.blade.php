@@ -1001,7 +1001,7 @@
                         class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                         :class="{ 'pointer-events-none opacity-50': uploading }"
                     >
-                        Cancel
+                        Back
                     </a>
                     <button
                         type="button"
@@ -1122,7 +1122,7 @@
                         @click="showSaveTemplateModal = false"
                         class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                     >
-                        Cancel
+                        Back
                     </button>
                     <button
                         @click="saveTemplate()"

@@ -76,7 +76,7 @@
                 <div class="flex items-center justify-end space-x-4 pt-8 border-t border-gray-200 mt-8">
                     <a href="{{ route('sprints.show', $sprint->id) }}"
                        class="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm">
-                        Cancel
+                        Back
                     </a>
                     <button type="submit"
                             class="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center space-x-2">

@@ -478,7 +478,7 @@
                 <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
                     <button type="button" @click="handleCancel()"
                             class="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm">
-                        Cancel
+                        Back
                     </button>
                     <button type="submit"
                             class="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">

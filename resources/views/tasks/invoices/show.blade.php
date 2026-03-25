@@ -84,7 +84,7 @@
 
         <div class="flex flex-wrap gap-3">
             <button onclick="window.close()" type="button" class="inline-flex items-center px-6 py-2 rounded-md text-gray-700 bg-white text-sm font-medium shadow transition hover:bg-gray-50">
-                Cancel
+                Back
             </button>
         </div>
     </div>

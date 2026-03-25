@@ -399,7 +399,7 @@
                                                 :disabled="isSaving"
                                                 class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
                                             >
-                                                Cancel
+                                                Back
                                             </button>
                                             <button 
                                                 @click="updateComment({{ $comment->id }})"
@@ -537,8 +537,8 @@
                                         href="{{ route('projects.show', $task->project_id) }}" 
                                         class="flex items-center space-x-2 px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                                     >
-                                        <i class="fas fa-times"></i>
-                                        <span>Cancel</span>
+                                        <i class="fas fa-arrow-left"></i>
+                                        <span>Back</span>
                                     </a>
                                     
                                     <div class="flex items-center space-x-3">

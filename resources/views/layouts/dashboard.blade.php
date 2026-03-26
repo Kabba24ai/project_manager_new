@@ -35,6 +35,36 @@
     </div>
     @endif
     
+    <!-- JS-redirect success toast (reads ?success= query param) -->
+    <div id="js-success-toast" class="fixed top-4 right-4 z-50 max-w-md hidden">
+        <div class="bg-green-50 border-l-4 border-green-400 p-4 rounded shadow-lg">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-check-circle text-green-400"></i>
+                </div>
+                <div class="ml-3">
+                    <p id="js-success-toast-msg" class="text-sm text-green-700"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var params = new URLSearchParams(window.location.search);
+            var msg = params.get('success');
+            if (msg) {
+                var toast = document.getElementById('js-success-toast');
+                document.getElementById('js-success-toast-msg').textContent = decodeURIComponent(msg.replace(/\+/g, ' '));
+                toast.classList.remove('hidden');
+                setTimeout(function () { toast.classList.add('hidden'); }, 4000);
+                // Clean the param from the URL without reloading
+                params.delete('success');
+                var clean = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash;
+                window.history.replaceState({}, '', clean);
+            }
+        });
+    </script>
+
     @if (session('error'))
     <div class="fixed top-4 right-4 z-50 max-w-md">
         <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded shadow-lg">

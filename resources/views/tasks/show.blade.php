@@ -232,19 +232,19 @@
                             @endif
                             <button 
                                 type="button" 
-                                @click="{{ $status['value'] === 'approved' ? 'approveAndSave()' : 'setStatus(\'' . $status['value'] . '\')' }}" 
+                                @click="saveStatus('{{ $status['value'] }}')"
+                                :disabled="isSavingStatus"
                                 :class="{'{{ $status['activeColor'] }}': stagedStatus === '{{ $status['value'] }}', 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50': stagedStatus !== '{{ $status['value'] }}'}"
-                                class="inline-flex flex-col items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors border-2"
+                                class="inline-flex flex-col items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors border-2 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 <div class="flex items-center whitespace-nowrap">
-                                    <i class="fas fa-{{ $status['icon'] }} mr-2"></i>
-                                    {{ $status['label'] }}
+                                    <i class="fas" :class="isSavingStatus && stagedStatus === '{{ $status['value'] }}' ? 'fa-spinner fa-spin' : 'fa-{{ $status['icon'] }}'"></i>
+                                    <span class="ml-2">{{ $status['label'] }}</span>
                                 </div>
-                                <span x-show="stagedStatus === '{{ $status['value'] }}' && stagedStatus !== '{{ $task->task_status }}'" class="mt-1 text-xs">(pending)</span>
                             </button>
                         @endforeach
                     </div>
-                    <p class="text-xs text-gray-500 mt-3">Click any status to stage changes. Click "Save & Exit" to save all changes. Clicking "Approved" will automatically save and exit.</p>
+                    <p class="text-xs text-gray-500 mt-3">Click any status to save immediately. Approving will redirect you to the project page.</p>
                 </div>
 
                 <!-- Comments Section -->
@@ -1092,6 +1092,7 @@ function taskChangesManager() {
         originalStatus: '{{ $task->task_status }}',
         newComment: '',
         isSavingComment: false,
+        isSavingStatus: false,
         commentAttachments: [],
         copiedTaskLink: false,
         
@@ -1154,75 +1155,70 @@ function taskChangesManager() {
             return this.newComment.trim() || this.commentAttachments.length > 0;
         },
         
-        setStatus(status) {
-            this.stagedStatus = status;
-        },
-        
-        async approveAndSave() {
-            // Set status to approved
-            this.stagedStatus = 'approved';
-            
-            try {
-                // Save comment first if there's an unsaved comment
-                if (this.hasUnsavedComment()) {
-                    // Check if any files are still uploading
-                    const stillUploading = this.commentAttachments.some(file => file.uploading);
-                    if (stillUploading) {
-                        alert('Please wait for all files to finish uploading.');
-                        return;
-                    }
-                    
-                    // Check if any files failed to upload
-                    const failedUploads = this.commentAttachments.some(file => file.error);
-                    if (failedUploads) {
-                        alert('Some files failed to upload. Please remove them and try again.');
-                        return;
-                    }
-                    
-                    // Only save comment if there's actual content (text or files)
-                    if (this.newComment.trim() || this.commentAttachments.some(file => file.uploaded && file.tempId)) {
-                        // Collect uploaded file IDs
-                        const uploadedFileIds = this.commentAttachments
-                            .filter(file => file.uploaded && file.tempId)
-                            .map(file => file.tempId);
+        async saveStatus(status) {
+            if (this.isSavingStatus) return;
 
-                        const commentResponse = await fetch('{{ route('comments.store', $task->id) }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                content: this.newComment.trim() || '',
-                                uploaded_files: uploadedFileIds
-                            })
-                        });
-                        
-                        if (!commentResponse.ok) {
-                            throw new Error('Failed to save comment');
-                        }
-                    }
+            const stillUploading = this.commentAttachments.some(file => file.uploading);
+            if (stillUploading) {
+                alert('Please wait for all files to finish uploading.');
+                return;
+            }
+            const failedUploads = this.commentAttachments.some(file => file.error);
+            if (failedUploads) {
+                alert('Some files failed to upload. Please remove them and try again.');
+                return;
+            }
+
+            this.stagedStatus = status;
+            this.isSavingStatus = true;
+
+            try {
+                // Save comment if there is content or attached files
+                if (this.newComment.trim() || this.commentAttachments.some(file => file.uploaded && file.tempId)) {
+                    const uploadedFileIds = this.commentAttachments
+                        .filter(file => file.uploaded && file.tempId)
+                        .map(file => file.tempId);
+
+                    const commentResponse = await fetch('{{ route('comments.store', $task->id) }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            content: this.newComment.trim() || '',
+                            uploaded_files: uploadedFileIds
+                        })
+                    });
+
+                    if (!commentResponse.ok) throw new Error('Failed to save comment');
                 }
-                
-                // Save status change (always update to approved, even if already approved)
-                await fetch('{{ route('tasks.update-status', $task->id) }}', {
+
+                // Save the status
+                const statusResponse = await fetch('{{ route('tasks.update-status', $task->id) }}', {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({
-                        status: 'approved'
-                    })
+                    body: JSON.stringify({ status: status })
                 });
-                
-                // Redirect to dashboard page
-                window.location.href = '{{ route('dashboard') }}';
+
+                if (!statusResponse.ok) throw new Error('Failed to update status');
+
+                // Approved → go to project page; all others → reload task page
+                if (status === 'approved') {
+                    window.location.href = '{{ route('projects.show', $task->project_id) }}?success=Task+approved+successfully';
+                } else {
+                    window.location.href = '{{ route('tasks.show', $task->id) }}?success=Task+status+updated+successfully';
+                }
             } catch (error) {
-                console.error('Error saving changes:', error);
+                console.error('Error saving status:', error);
                 alert('Failed to save changes. Please try again.');
+                this.stagedStatus = this.originalStatus;
+                this.isSavingStatus = false;
             }
         },
         

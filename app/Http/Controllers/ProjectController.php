@@ -124,6 +124,7 @@ class ProjectController extends Controller
         $allProjects = Project::with(['taskLists' => function($query) {
             $query->orderBy('order', 'asc');
         }])
+        ->where('status', '!=', 'completed')
         ->where(function($query) use ($user, $isMasterAdmin) {
             if (!$isMasterAdmin) {
                 $query->where('created_by', $user->id)

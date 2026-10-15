@@ -113,21 +113,28 @@ class AuthController extends Controller
         }
 
         try {
+            // The SSO secret comes from configuration only, and never falls back
+            // to APP_KEY (that key was published). Without a valid dedicated
+            // secret, SSO is off and users sign in with their password.
+            $secret = \App\Support\SsoSecret::resolve();
+            if ($secret === null) {
+                return redirect()->route('login')->with('error', 'Single sign-on is unavailable. Please sign in with your email and password.');
+            }
+
             $token = $request->query('token');
-            
+
             if (!$token) {
                 return redirect()->route('login')->with('error', 'Invalid SSO token.');
             }
 
             // Decode and verify token
             $decoded = json_decode(base64_decode($token), true);
-            
+
             if (!isset($decoded['data']) || !isset($decoded['signature'])) {
                 return redirect()->route('login')->with('error', 'Invalid token format.');
             }
 
-            // Verify signature
-            $secret = env('SSO_SHARED_SECRET', config('app.key'));
+            // Verify signature with the dedicated secret.
             $expectedSignature = hash_hmac('sha256', $decoded['data'], $secret);
             
             if (!hash_equals($expectedSignature, $decoded['signature'])) {

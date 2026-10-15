@@ -28,6 +28,13 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // Single sign-on shared secret with Kabba. Read here (not via env() in code)
+    // so it survives config:cache. There is NO APP_KEY fallback: that key was
+    // published. Unset or too short => SSO is disabled (App\Support\SsoSecret).
+    'sso' => [
+        'shared_secret' => env('SSO_SHARED_SECRET'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

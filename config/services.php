@@ -32,6 +32,9 @@ return [
     // so it survives config:cache. There is NO APP_KEY fallback: that key was
     // published. Unset or too short => SSO is disabled (App\Support\SsoSecret).
     'sso' => [
+        // Master switch. OFF unless SSO_ENABLED is exactly true; it overrides the
+        // secret below, so a leftover SSO_SHARED_SECRET cannot keep SSO alive.
+        'enabled' => filter_var(env('SSO_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
         'shared_secret' => env('SSO_SHARED_SECRET'),
     ],
 

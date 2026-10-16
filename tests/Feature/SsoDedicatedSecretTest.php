@@ -38,7 +38,8 @@ class SsoDedicatedSecretTest extends TestCase
             $t->timestamps();
         });
         $this->secret = Str::random(48);
-        config(['services.sso.shared_secret' => $this->secret]);
+        // These exercise SSO while enabled; the master switch defaults OFF.
+        config(['services.sso.enabled' => true, 'services.sso.shared_secret' => $this->secret]);
     }
 
     private function token(string $secret, string $email, ?int $expiresAt = null): string
@@ -96,6 +97,18 @@ class SsoDedicatedSecretTest extends TestCase
         $inactive = $this->user('Inactive');
         $this->get(route('auth.sso', ['token' => $this->token($this->secret, $user->email, time() - 10)]))->assertSessionHas('error', 'SSO token has expired.');
         $this->get(route('auth.sso', ['token' => $this->token($this->secret, $inactive->email)]))->assertSessionHas('error', 'User not found or inactive.');
+        $this->assertGuest();
+    }
+    public function test_the_master_switch_off_disables_sso_even_with_a_valid_secret(): void
+    {
+        $user = $this->user();
+        config(['services.sso.enabled' => false, 'services.sso.shared_secret' => $this->secret]);
+
+        $this->assertFalse(SsoSecret::enabled());
+        $this->assertFalse(SsoSecret::configured());
+        $this->get(route('auth.sso', ['token' => $this->token($this->secret, $user->email)]))
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('error', 'Single sign-on is unavailable. Please sign in with your email and password.');
         $this->assertGuest();
     }
 }
